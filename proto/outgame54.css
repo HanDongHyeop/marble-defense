@@ -284,3 +284,6 @@ html, body { background: #120f22; }
 .famtower .see { display: none; }
 .famtower::after { content: '›'; position: absolute; right: 8px; top: 50%; translate: 0 -50%; font-size: 30px; color: rgba(255,255,255,.75); text-shadow: 0 2px 0 rgba(0,0,0,.5); }
 .skin .rar { font-size: 15px; background: rgba(0,0,0,.55); color: #fff; }
+/* [독립 검토 반영] 덱 카드 위 색 띠 = 계열 색 → 계열 칩에도 같은 색 점(무슨 색인지 바로 읽힘) */
+.trayhead .chip::before { content: ""; display: inline-block; width: 12px; height: 12px; margin-right: 6px; border-radius: 50%; background: var(--fc); box-shadow: 0 0 6px var(--fc); vertical-align: 1px; }
+.trayhead .chip:first-child::before { display: none; }
