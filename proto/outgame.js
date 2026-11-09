@@ -640,7 +640,7 @@
       if (ui.screen !== 'home') go('home');
       const d = window.OG_FORCE || rollStart(S.miss || 0); window.OG_FORCE = null;
       const dbl = d[0] === d[1], b1 = $('bd1'), b2 = $('bd2'), dice = document.querySelector('.bigdice');
-      prepGame(mode || 'solo', dbl ? { d, txt: DBL[d[0] - 1][2], fx: DBL[d[0] - 1][3] } : null);   // [v5.3] 굴리는 동안 판을 뒤에서 미리 불러옴
+      const sbNow = dbl ? { d, txt: DBL[d[0] - 1][2], fx: DBL[d[0] - 1][3] } : null;   // [v5.4] 판 미리 불러오기는 주사위가 착지한 뒤에(던지는 동안 불러오면 아이폰에서 던지기가 멈칫)
       ui.rolling = true; dice.classList.remove('landed', 'win'); void dice.offsetWidth; dice.classList.add('rolling');
       SND.play('dice', 0.7);
       let k = 0; const spin = setInterval(() => { b1.innerHTML = isoDie(1 + (k % 6), S.eq.dice); b2.innerHTML = isoDie(1 + ((k * 5 + 3) % 6), S.eq.dice); k++; if (k % 2) SND.tone(900 + (k % 5) * 90, 0, 0.03, 0.025, 'square'); }, 60);
@@ -650,6 +650,7 @@
         if (dbl) { dice.classList.add('win'); const ds = document.querySelector('.dstage'); for (let q = 0; q < (d[0] === 6 ? 22 : 14); q++) { const sp = document.createElement('i'); sp.className = 'spark'; const an = Math.random() * Math.PI * 2, r = 120 + Math.random() * 160; sp.style.setProperty('--dx', Math.cos(an) * r + 'px'); sp.style.setProperty('--dy', Math.sin(an) * r * 0.7 - 60 + 'px'); sp.style.animationDelay = (Math.random() * 0.15) + 's'; ds.appendChild(sp); setTimeout(() => sp.remove(), 1100); } SND.play(d[0] === 6 ? 'jackpot' : 'tierup', 0.75); }
         else SND.play('coin', 0.5);
         S.miss = dbl ? 0 : (S.miss || 0) + 1; ui.lastRoll = { d, dbl };
+        setTimeout(() => prepGame(mode || 'solo', sbNow), 120);
         const bonus = dbl ? DBL[d[0] - 1] : null; ui.startBonus = bonus ? { d, txt: bonus[2], fx: bonus[3] } : null; save();
         const f = $('fx');
         f.innerHTML = dbl
@@ -941,7 +942,10 @@
       bonus: sb ? sb.fx : null, bonusTxt: sb ? { d: sb.d.join('·'), txt: sb.txt } : null, meta: { nodes: S.nodes, unlocked: S.unlocked } };
     const fr = G0.fr = document.createElement('iframe'); fr.id = 'game'; fr.className = 'pre'; fr.title = '마블 디펜스 판'; fr.setAttribute('allow', 'autoplay; fullscreen');
     fr.src = '../game.html?embed=1&og=' + encodeURIComponent(JSON.stringify(og));
-    document.body.appendChild(fr);                                                      // 투명한 채로 뒤에서 준비(누름은 통과)
+    G0.attach = () => { if (!fr.isConnected && ui.inGame === G0) document.body.appendChild(fr); };
+    // 크롬(안드로이드 · PC)은 판을 불러와도 이 화면이 거의 안 멈춤 → 착지 직후 바로. 아이폰(WebKit)은 같은 줄에서 돌아 로비가 멈칫 → 진입 막 아래에서(enterGame)
+    const UA = navigator.userAgent, WK = /iPhone|iPad|iPod/.test(UA) || (/AppleWebKit/.test(UA) && !/Chrome|Chromium|Android|Edg/.test(UA)) || (navigator.maxTouchPoints > 1 && /Macintosh/.test(UA));
+    if (!WK) G0.attach();   // [v5.4] 판은 주사위가 다 구른 뒤 진입 막 아래에서 붙인다(던지는 동안 불러오면 아이폰에서 던지기 · 띠가 멈칫)
     const failNow = () => { if (ui.inGame === G0 && !G0.ready) { const x = $('xfer'); if (!x) xferShow(); backToOutgame(() => { go('home'); toast('판을 불러오지 못했어요 · 인터넷을 확인하고 다시 눌러 주세요'); }); } };
     G0.fail = setTimeout(failNow, 30000);   // 진행 소식이 30초 동안 없으면 실패(느린 데이터망에서도 진행 중이면 기다림)
     ui.gameMsg = m => {
@@ -958,6 +962,7 @@
     const G0 = ui.inGame; if (!G0) return;
     const x = xferShow(); x.querySelector('.xmid').innerHTML = deckReveal(G0.mode, G0.n, G0.di, G0.sb);
     setTimeout(() => { if (ui.inGame === G0) G0.fr.classList.remove('pre'); }, 380);   // 막이 다 덮은 뒤 판을 보이는 층으로
+    setTimeout(() => G0.attach(), 420);   // 막이 덮은 직후부터 불러옴 — 덱 펼침은 CSS 애니메이션(GPU)이라 화면이 바빠도 끊기지 않음
     G0.tryGo = () => {
       if (!G0.ready || !G0.shown || G0.go || ui.inGame !== G0) return; G0.go = true; clearTimeout(G0.fail);
       const xd = x.querySelector('.xd'); if (xd) xd.classList.add('gone');            // 덱이 먼저 사라지고(막은 그대로)
@@ -968,7 +973,7 @@
         xferHide();                                                                     // 막이 걷히며 판이 보인다
       }, 700);
     };
-    setTimeout(() => { G0.shown = true; G0.tryGo(); if (!G0.go) { const xd = x.querySelector('.xd'); if (xd) xd.classList.add('wait'); } }, G0.sb ? 3300 : 2900);   // 덱을 보여 주는 최소 시간 · 판이 늦으면 '판 준비 중…'
+    setTimeout(() => { G0.shown = true; G0.tryGo(); if (!G0.go) { const xd = x.querySelector('.xd'); if (xd) xd.classList.add('wait'); } }, G0.sb ? 3000 : 2600);   // 덱을 보여 주는 최소 시간 · 판이 늦으면 '판 준비 중…'
   }
   addEventListener('message', e => { const m = e.data; if (m && m.src === 'mdg' && ui.gameMsg && e.source === ($('game') || {}).contentWindow) ui.gameMsg(m); });
 
