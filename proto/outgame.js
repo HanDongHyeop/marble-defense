@@ -1,3 +1,4 @@
+// [v5.4 시안] 아웃게임 디자인 다시(테두리 실선 걷기 · 탭마다 분위기 · 상점 · 설정 · 소리 · 개발 도구 · 성장 탭 포탑 보기 · 시작 주사위 손맛 · 폰 세로 채우기) — v5.3 위에
 // [v5.3 시안] 아웃게임(시작 = 실제 판 · 진입 로딩 + 덱 펼침 · 첫 로딩 · 주사위 안착 · 덱 틀고정 — v5.2 위에)
 // v5.2 → v5.3: 시작을 누르면 본편 판(../index.html?embed=1)을 이 창 안에서 열고, 판이 끝나면 실제 결과(승패 · 별 · 처치 · 시간)로 결과 화면.
 //              ?noboot=1 = 첫 로딩 건너뛰기(검수용) · OG.game() = 판 iframe — 모든 단추가 실제로 동작하는 시안. 본편 데이터(DATA · META · GEOM)를 그대로 읽는다.
@@ -81,6 +82,22 @@
   try { S = /[?&]reset=1/.test(location.search) ? null : JSON.parse(localStorage.getItem('mdog51') || 'null'); } catch (e) { S = null; }
   if (!S || !S.att) S = BASE_STATE();
   if (S.miss == null) S.miss = 0;
+  // [v5.4] 로비 소리: 배경음(본편 bgm_lobby) · 단추 톡 · 주사위 · 혜택. 폰은 첫 터치 때 켜진다(자동 재생 막힘). 판에 들어가면 멈추고 나오면 다시
+  const SFXD = '../assets/sfx/';
+  const SND = {
+    unlocked: false, ctx: null, bgm: null,
+    unlock() { if (this.unlocked) return; this.unlocked = true; try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { this.ctx = null; } this.music(); },
+    music() {
+      if (!this.unlocked) return;
+      const want = S.set.bgm && !ui.inGame && !document.hidden;
+      if (!this.bgm) { this.bgm = new Audio(SFXD + 'bgm_lobby.mp3'); this.bgm.loop = true; this.bgm.volume = 0.32; }
+      if (want) { const pr = this.bgm.play(); if (pr && pr.catch) pr.catch(() => {}); } else this.bgm.pause();
+    },
+    play(n, vol) { if (!this.unlocked || !S.set.sfx) return; try { const a = new Audio(SFXD + n + '.mp3'); a.volume = vol == null ? 0.6 : vol; const pr = a.play(); if (pr && pr.catch) pr.catch(() => {}); } catch (e) { /* 소리 없음 */ } },
+    tone(f, f2, d, v, wave) { const c = this.ctx; if (!c || !S.set.sfx) return; if (c.state === 'suspended') c.resume(); const t = c.currentTime, o = c.createOscillator(), g = c.createGain(); o.type = wave || 'triangle'; o.frequency.setValueAtTime(f, t); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + d); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v || 0.08, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0008, t + d); o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + d + 0.05); },
+    click() { this.tone(520, 700, 0.07, 0.07); },
+  };
+  document.addEventListener('visibilitychange', () => SND.music());
   const save = () => { try { localStorage.setItem('mdog51', JSON.stringify(S)); } catch (e) { /* 저장 안 됨 — 시안은 그대로 동작 */ } };
   const ui = { screen: 'home', modal: null, scroll: {}, hpawn: 0, hrolled: false, tier: {}, famTab: 'arc', colTab: 'dice', qTab: 'daily', chipFam: 'all', swap: null, bubble: null, flash: null, lastRes: null, busy: false, bump: {} };
 
@@ -145,6 +162,7 @@
     ${B('curInfo', 'gold', 'cur' + (ui.bump.gold ? ' bump' : ''), `${coin()}<b>${fmt(S.gold)}</b>`)}
     ${B('curInfo', 'core', 'cur' + (ui.bump.core ? ' bump' : ''), `${og('core')}<b>${S.core}</b>`)}
     ${B('curInfo', 'gem', 'cur' + (ui.bump.gem ? ' bump' : ''), `${og('gem')}<b>${fmt(S.gem)}</b><span class="plus">+</span>`)}
+    ${B('settings', null, 'gear', '<svg viewBox="0 0 32 32"><path fill="#e8e2ff" d="M18.6 2l.7 3.6c.9.3 1.8.7 2.6 1.2l3.1-2 3.7 3.7-2 3.1c.5.8.9 1.7 1.2 2.6l3.6.7v5.2l-3.6.7c-.3.9-.7 1.8-1.2 2.6l2 3.1-3.7 3.7-3.1-2c-.8.5-1.7.9-2.6 1.2L18.6 30h-5.2l-.7-3.6c-.9-.3-1.8-.7-2.6-1.2l-3.1 2-3.7-3.7 2-3.1c-.5-.8-.9-1.7-1.2-2.6L.5 18.6v-5.2l3.6-.7c.3-.9.7-1.8 1.2-2.6l-2-3.1 3.7-3.7 3.1 2c.8-.5 1.7-.9 2.6-1.2l.7-3.6h5.2z"/><circle cx="16" cy="16" r="5.2" fill="#3a3172"/></svg>')}
   </div>`;
   const TABS = [['shop', '상점'], ['deck', '덱'], ['home', '전투'], ['grow', '성장'], ['collect', '수집']];
   const tabs = cur => `<nav class="tabs">${TABS.map(([k, n]) => {
@@ -185,7 +203,7 @@
       ${B('freeGift', null, 'sbtn flat', `${og('chestopen')}${dot(!S.shop.free)}오늘 무료`)}
     </div>
     <div class="dstage">
-      <div class="pedestal"></div><i class="ring"></i><i class="puff a"></i><i class="puff b"></i>
+      <div class="pedestal"></div><i class="shadowd"></i><i class="ring"></i><i class="puff a"></i><i class="puff b"></i>
       ${B('dblInfo', null, 'bigdice', `<span id="bd1">${isoDie(face[0], S.eq.dice)}</span><span id="bd2">${isoDie(face[1], S.eq.dice)}</span>`)}
       <div class="lastroll">${last ? (last.d[0] === last.d[1] ? `지난 굴림 <b>${last.d[0]}·${last.d[1]} 더블</b>` : `지난 굴림 ${last.d[0]}·${last.d[1]}`) : '주사위를 누르면 혜택표'}</div>
     </div>
@@ -200,6 +218,7 @@
       ${B('start', null, 'btn startbtn ' + (ok ? 'green breath' : 'off'), `${ok ? '시작!' : '잠김'}<small>${startSub}</small>`)}
       ${B('endless', null, 'rbtn' + (chOpen(4) ? '' : ' lockd'), `<span class="big v">∞</span>${chOpen(4) ? '무한' : '🔒 무한'}`)}
     </div>
+    ${B('dev', null, 'devbtn', 'DEV')}
     ${tabs('home')}`;
   }
 
@@ -301,8 +320,12 @@
     let goal;
     if (lockT) { const nd = M.unlockNeed(m(), lockT), can = nd.lvOk && nd.coreOk; goal = `<div class="goal"><span class="tag">다음 목표</span><img src="${tw(lockT, 3)}" alt=""><div class="tx"><b>${tname(lockT)} 열기</b>나무 Lv${nd.lv} ${nd.lvOk ? '✔' : `(지금 ${tl})`} · 코어 ${nd.core} ${nd.coreOk ? '✔' : `(지금 ${S.core})`}${can ? ' — 지금 열 수 있어요' : ''}</div>${B('unlock', lockT, 'btn small ' + (can ? 'gold' : 'off'), `${og('core')} ${nd.core}`)}</div>`; }
     else { const nx = M.FAM_NODES.find(nd => !M.nodeInfo(m(), fam, nd).maxed && !M.nodeInfo(m(), fam, nd).locked); goal = `<div class="goal"><span class="tag">다음 목표</span>${og('star', '')}<div class="tx"><b>${nx ? nx.name + ' 올리기' : '나무 완성!'}</b>${F.name} 포탑 3종을 모두 열었어요</div></div>`; }
+    const famT = F.towers.map(k => { const own = owned(k), lv = tgl(k), t = own ? Math.min(6, 3 + Math.floor(lv / 10)) : 0;
+      return B('tower', k, `famtower ${own ? '' : 'lock'}" style="--fc:${fc(k)}`, `<span class="tierline">${[1, 2, 3, 4, 5, 6].map(n => `<i class="${n <= t ? 'on' : ''}"></i>`).join('')}</span><span class="see">${own ? '단계 · 특성 ›' : '여는 법 ›'}</span><img src="${tw(k, own ? Math.max(3, t) : 3)}" alt=""><b>${tname(k)}</b><small>${own ? `특성 Lv ${lv}` : '🔒 잠김'}</small>`); }).join('');
     return `<div class="bgnavy"></div>${topbar()}
     <div class="body top96">${tabsH}
+      <div class="sec-t">${F.name} 포탑 ${F.towers.length}종 <span class="r">눌러서 1~6단계 · 특성 트리 보기</span></div>
+      <div class="famtowers">${famT}</div>
       <div class="treehead panel" style="--fc:${col}"><div class="lvbig"><b>${tl}</b>나무 Lv</div>
         <div class="tx"><b>${F.name} 나무</b> = 아래 칸 레벨 + ${F.name} 포탑 특성 레벨의 합
           <div class="ladder">${[[5, '공속'], [10, '포탑'], [12, '금화'], [15, '치명'], [20, '갈림'], [30, '규칙']].map(([q, s]) => `<span class="${tl >= q ? 'ok' : ''}">${q} ${s}</span>`).join('')}</div></div></div>
@@ -338,34 +361,48 @@
 
   // ------------------------------------------------------------ 6. 상점
   function shop() {
-    const item = (act, arg, vis, amt, price, cls, tag) => B(act, arg, `item ${cls || ''}`, `${tag ? `<span class="tag">${tag}</span>` : ''}<div class="vis">${vis}</div><div class="amt">${amt}</div>${price}`);
-    const gemP = n => `<div class="price">${og('gem')}${n}</div>`;
-    const won = n => `<div class="price">₩${fmt(n)}</div>`;
-    const sold = t => `<div class="price">${t}</div>`;
-    const jelly = S.own.dice.includes('jelly'), cat = S.own.pawn.includes('cat');
+    const SI = n => `img/shop/${n}.png`;
+    const won = n => `<span class="pr">₩${fmt(n)}</span>`, gemP = n => `<span class="pr gem">${og('gem')}${fmt(n)}</span>`;
+    const card = (act, arg, cls, pic, am, pr, tg, bonus) => B(act, arg, `sitem ${cls || ''}`, `${tg ? `<span class="tg ${tg[1] || ''}">${tg[0]}</span>` : ''}${bonus ? `<span class="bonus">${bonus}</span>` : ''}<img class="pic" src="${pic}" alt=""><div class="am">${am}</div>${pr}`);
+    const jelly = S.own.dice.includes('jelly'), cat = S.own.pawn.includes('cat'), st = S.shop.starter;
+    const fl = ui.flash === 'gems' ? ' flash' : '';
     return `<div class="bgnavy"></div>${topbar()}
     <div class="body top96">
-      <div class="sec-t">오늘의 상점 <span class="r">매일 오전 9시 새로 고침</span></div>
-      <div class="shopgrid">
-        ${item('freeGift', null, og('chestopen', ''), '골드 1,000', S.shop.free ? sold('받음 ✔') : `<div class="price free">${og('ad')} 받기</div>`, (S.shop.free ? 'sold' : 'best') + (ui.flash === 'free' ? ' flash' : ''), S.shop.free ? '' : '매일')}
-        ${item('buy', 'gold3k', coin(''), '골드 3,000', S.shop.goldBuy >= 3 ? sold('오늘 끝') : gemP(30), S.shop.goldBuy >= 3 ? 'sold' : '', `${3 - S.shop.goldBuy}/3`)}
-        ${item('buy', 'core5', og('core', ''), '코어 5', S.shop.coreBuy ? sold('오늘 끝') : gemP(40), S.shop.coreBuy ? 'sold' : '', '하루 1번')}
+      ${B('buy', 'starter', 'shophero' + (st ? ' sold' : ''), `<img class="hpic" src="${SI('starter')}" alt="">
+        <div class="htx"><span class="hk">한 번만 · 첫 구매 특가</span><h3>시작 꾸러미</h3>
+          <div class="hl">보석 <b>500</b> · 골드 <b>3만</b> · 코어 <b>30</b><br>+ 황금 주사위 스킨</div>
+          <div class="hbuy">${st ? '<span class="btn small off">구매 완료 ✔</span>' : `<span class="btn gold">₩4,900</span><span class="was">₩16,500</span>`}</div></div>
+        ${st ? '' : '<span class="off">-70%<small>할인</small></span>'}<span class="timer">⏱ 2일 13시간 남음</span>`)}
+      <div class="sec-t">오늘의 특가 <span class="r">매일 오전 9시 새로 고침</span></div>
+      <div class="deals">
+        ${card('freeGift', null, 'deal' + (S.shop.free ? ' sold' : ' hot') + (ui.flash === 'free' ? ' flash' : ''), SI('gift'), '골드 1,000<small>매일 무료</small>', S.shop.free ? '<span class="pr">받음 ✔</span>' : `<span class="pr ad">${og('ad')} 받기</span>`, S.shop.free ? null : ['무료', 'blue'])}
+        ${card('buy', 'gold3k', 'gold' + (S.shop.goldBuy >= 3 ? ' sold' : ''), SI('gold2'), '골드 3,000', S.shop.goldBuy >= 3 ? '<span class="pr">오늘 끝</span>' : gemP(30), [`${3 - S.shop.goldBuy}/3`, ''])}
+        ${card('buy', 'core5', 'deal' + (S.shop.coreBuy ? ' sold' : ''), PIMG + 'og_core.png', '코어 5', S.shop.coreBuy ? '<span class="pr">오늘 끝</span>' : gemP(40), ['하루 1번', 'gold'])}
+      </div>
+      <div class="sec-t" id="gems">보석 <span class="r">첫 구매는 2배</span></div>
+      <div class="gemgrid">
+        ${card('buy', 'gem80', fl, SI('gem1'), '보석 80', won(1200))}
+        ${card('buy', 'gem500', fl, SI('gem2'), '보석 500<small>+50 보너스</small>', won(6500), ['첫 구매 ×2', ''])}
+        ${card('buy', 'gem1200', 'hot' + fl, SI('gem3'), '보석 1,200<small>+200 보너스</small>', won(15000), ['인기', ''])}
+        ${card('buy', 'gem2500', fl, SI('gem4'), '보석 2,500<small>+500 보너스</small>', won(29000))}
+        ${card('buy', 'gem6500', fl, SI('gem5'), '보석 6,500<small>+1,500 보너스</small>', won(69000), ['최고 가치', 'gold'])}
+        ${card('buy', 'gem14000', fl, SI('gem6'), '보석 14,000<small>+4,000 보너스</small>', won(129000), null, '+40%')}
+      </div>
+      <div class="sec-t">골드</div>
+      <div class="gemgrid">
+        ${card('buy', 'gold12k', 'gold', SI('gold1'), '골드 12,000', gemP(100))}
+        ${card('buy', 'gold40k', 'gold', SI('gold2'), '골드 40,000<small>+10%</small>', gemP(300), ['인기', ''])}
+        ${card('buy', 'gold150k', 'gold', SI('gold3'), '골드 150,000<small>+25%</small>', gemP(1000), null, '+25%')}
       </div>
       <div class="sec-t">후원 회원</div>
-      ${B('buy', 'vip', 'vip', `<span class="em">후원</span><div class="tx"><b>후원 회원 · 30일</b>판 보상 +50% · 매일 보석 20 · 패스 별 +20%<br>광고 없이 '오늘의 무료' 받기</div><span class="btn small gold">${S.shop.vip ? '이용 중' : '₩5,900'}</span>`)}
-      <div class="sec-t" id="gems">보석</div>
-      <div class="shopgrid">
-        ${item('buy', 'gem80', og('gem', ''), '보석 80', won(1200), ui.flash === 'gems' ? 'flash' : '')}
-        ${item('buy', 'gem500', og('gem', ''), '보석 500 <small>+50</small>', won(6500), ui.flash === 'gems' ? 'flash' : '', '첫 구매 ×2')}
-        ${item('buy', 'gem1200', og('gem', ''), '보석 1,200 <small>+200</small>', won(15000), 'best' + (ui.flash === 'gems' ? ' flash' : ''), '인기')}
-      </div>
+      ${B('buy', 'vip', 'vipcard', `<img src="${SI('vip')}" alt=""><div class="tx"><b>후원 회원 · 30일</b>판 보상 +50% · 매일 보석 20<br>패스 별 +20% · 광고 없이 '오늘의 무료'</div><span class="btn ${S.shop.vip ? 'off' : 'gold'} small">${S.shop.vip ? '이용 중' : '₩5,900'}</span>`)}
       <div class="sec-t">꾸미기 · 편의 <span class="r">이번 주</span></div>
-      <div class="shopgrid">
-        ${item('buy', 'jelly', `<div class="dice2" style="transform:scale(.85)">${flatDie(6, 'jelly')}${flatDie(2, 'jelly')}</div>`, '젤리 주사위', jelly ? sold('보유 ✔') : gemP(300), jelly ? 'sold' : '')}
-        ${item('buy', 'cat', `<img src="${IMG}p_cat.png" style="width:56px;height:88px;object-fit:contain" alt="">`, '보라 말', cat ? sold('보유 ✔') : gemP(200), cat ? 'sold' : '')}
-        ${item('buy', 'slot3', `<span style="position:relative;width:100px;height:84px;display:block">${['fire', 'bolt', 'light'].map((q, j) => `<img src="${tw(q, 2)}" style="position:absolute;left:${j * 26}px;top:${j % 2 ? 0 : 10}px;width:52px;height:64px;object-fit:contain" alt="">`).join('')}<b style="position:absolute;right:-4px;bottom:-4px;width:36px;height:36px;border-radius:50%;background:#3fbf4f;border:3px solid #fff4e0;box-shadow:0 0 0 2px #2b1426;font-size:22px;line-height:28px;font-weight:400">+</b></span>`, '덱 칸 3 열기', S.slot3 ? sold('열림 ✔') : gemP(100), S.slot3 ? 'sold' : '', '편의')}
+      <div class="gemgrid">
+        ${B('buy', 'jelly', 'sitem deal' + (jelly ? ' sold' : ''), `<div class="pic" style="display:flex;align-items:center;justify-content:center;gap:6px">${isoDie(6, 'jelly')}${isoDie(2, 'jelly')}</div><div class="am">젤리 주사위</div>${jelly ? '<span class="pr">보유 ✔</span>' : gemP(300)}`)}
+        ${B('buy', 'cat', 'sitem deal' + (cat ? ' sold' : ''), `<img class="pic" src="${IMG}p_cat.png" alt="" style="height:110px"><div class="am">보라 말</div>${cat ? '<span class="pr">보유 ✔</span>' : gemP(200)}`)}
+        ${B('buy', 'slot3', 'sitem deal' + (S.slot3 ? ' sold' : ''), `<div class="pic" style="display:flex;align-items:flex-end;justify-content:center">${['fire', 'bolt', 'light'].map(q => `<img src="${tw(q, 3)}" style="width:52px;height:80px;object-fit:contain" alt="">`).join('')}</div><div class="am">덱 칸 3 열기</div>${S.slot3 ? '<span class="pr">열림 ✔</span>' : gemP(100)}`)}
       </div>
-      <div class="webnote">시안에서는 실제 결제가 없어요 · 확률로 뽑는 상품은 팔지 않아요</div>
+      <div class="shopfoot">시안에서는 실제 결제가 없어요 · 확률로 뽑는 상품은 팔지 않아요</div>
     </div>${tabs('shop')}`;
   }
 
@@ -604,10 +641,14 @@
       const d = window.OG_FORCE || rollStart(S.miss || 0); window.OG_FORCE = null;
       const dbl = d[0] === d[1], b1 = $('bd1'), b2 = $('bd2'), dice = document.querySelector('.bigdice');
       prepGame(mode || 'solo', dbl ? { d, txt: DBL[d[0] - 1][2], fx: DBL[d[0] - 1][3] } : null);   // [v5.3] 굴리는 동안 판을 뒤에서 미리 불러옴
-      ui.rolling = true; dice.classList.remove('landed'); dice.classList.add('rolling');
-      let k = 0; const spin = setInterval(() => { b1.innerHTML = isoDie(1 + (k % 6), S.eq.dice); b2.innerHTML = isoDie(1 + ((k * 5 + 3) % 6), S.eq.dice); k++; }, 70);
+      ui.rolling = true; dice.classList.remove('landed', 'win'); void dice.offsetWidth; dice.classList.add('rolling');
+      SND.play('dice', 0.7);
+      let k = 0; const spin = setInterval(() => { b1.innerHTML = isoDie(1 + (k % 6), S.eq.dice); b2.innerHTML = isoDie(1 + ((k * 5 + 3) % 6), S.eq.dice); k++; if (k % 2) SND.tone(900 + (k % 5) * 90, 0, 0.03, 0.025, 'square'); }, 60);
+      setTimeout(() => { const sc = $('scr'); sc.classList.remove('thump'); void sc.offsetWidth; sc.classList.add('thump'); SND.play('thud', 0.8); SND.tone(140, 60, 0.18, 0.12, 'sine'); }, 720);
       setTimeout(() => {
         clearInterval(spin); b1.innerHTML = isoDie(d[0], S.eq.dice); b2.innerHTML = isoDie(d[1], S.eq.dice); dice.classList.remove('rolling'); dice.classList.add('landed');
+        if (dbl) { dice.classList.add('win'); const ds = document.querySelector('.dstage'); for (let q = 0; q < (d[0] === 6 ? 22 : 14); q++) { const sp = document.createElement('i'); sp.className = 'spark'; const an = Math.random() * Math.PI * 2, r = 120 + Math.random() * 160; sp.style.setProperty('--dx', Math.cos(an) * r + 'px'); sp.style.setProperty('--dy', Math.sin(an) * r * 0.7 - 60 + 'px'); sp.style.animationDelay = (Math.random() * 0.15) + 's'; ds.appendChild(sp); setTimeout(() => sp.remove(), 1100); } SND.play(d[0] === 6 ? 'jackpot' : 'tierup', 0.75); }
+        else SND.play('coin', 0.5);
         S.miss = dbl ? 0 : (S.miss || 0) + 1; ui.lastRoll = { d, dbl };
         const bonus = dbl ? DBL[d[0] - 1] : null; ui.startBonus = bonus ? { d, txt: bonus[2], fx: bonus[3] } : null; save();
         const f = $('fx');
@@ -615,7 +656,7 @@
           ? `<div class="rollban dbl ${d[0] === 6 ? 'jack' : ''}"><div class="t">${d[0] === 6 ? '대박! ' : ''}${d[0]}·${d[1]} 더블!</div><div class="s">시작 혜택 · ${bonus[2]}</div></div>`
           : `<div class="rollban"><div class="t">${d[0]}·${d[1]}</div><div class="s">더블이 아니에요 · 혜택 없이 시작<br>다음 판 더블 확률 ${dblChance(S.miss)}%</div></div>`;
         setTimeout(() => { f.innerHTML = ''; ui.rolling = false; enterGame(); }, dbl ? 1700 : 1200);
-      }, 850);
+      }, 1050);
     },
     dblInfo() {
       if (ui.rolling) return;
@@ -709,7 +750,10 @@
       if (id === 'slot3') { if (S.slot3) { toast('덱 3은 이미 열렸어요'); return; } return gemBuy(100, '덱 칸 3', () => { S.slot3 = true; S.deckIdx = 2; render(); toast('덱 3이 열렸어요!'); }); }
       if (id === 'vip') { if (S.shop.vip) { toast('후원 회원 이용 중이에요 · 28일 남음'); return; } return cash(5900, '후원 회원 30일', () => { S.shop.vip = true; render(); rewardPop(grant({ gem: 20 }), '후원 회원 시작!'); }); }
       if (id === 'premium') return cash(9900, '프리미엄 패스', () => { S.pass.premium = true; render(); toast('프리미엄이 열렸어요 · 받을 보상이 늘었어요'); });
-      const g = { gem80: [1200, 80], gem500: [6500, 550], gem1200: [15000, 1400] }[id];
+      if (id === 'starter') { if (S.shop.starter) { toast('이미 산 꾸러미예요'); return; } return cash(4900, '시작 꾸러미(보석 500 · 골드 3만 · 코어 30 · 황금 주사위)', () => { S.shop.starter = true; render(); rewardPop(grant({ gem: 500, gold: 30000, core: 30, dice: 'gold' }), '시작 꾸러미!'); }); }
+      const gp = { gold12k: [100, 12000], gold40k: [300, 44000], gold150k: [1000, 187500] }[id];
+      if (gp) return gemBuy(gp[0], `골드 ${fmt(gp[1])}`, () => { render(); rewardPop(grant({ gold: gp[1] })); });
+      const g = { gem80: [1200, 80], gem500: [6500, 550], gem1200: [15000, 1400], gem2500: [29000, 3000], gem6500: [69000, 8000], gem14000: [129000, 18000] }[id];
       if (g) return cash(g[0], `보석 ${fmt(g[1])}`, () => { render(); rewardPop(grant({ gem: g[1] })); });
     },
     // 패스
@@ -754,7 +798,36 @@
     // 내 정보
     rename() { ui.lastName = S.name; open({ type: 'pop', title: '이름 바꾸기', html: `<input class="inp" id="nmInp" maxlength="8" value="${S.name}">`, msg: '<small>8자까지 · 시안이라 무료</small>', ok: '바꾸기', cancel: '취소' });
       ui.pending = () => { const v = (ui.lastName || '').trim(); if (!v) { toast('이름을 써 주세요'); return; } S.name = v.slice(0, 8); render(); toast(`「${S.name}」(으)로 바꿨어요`); }; },
-    tog(k) { S.set[k] = S.set[k] ? 0 : 1; const el = document.querySelector(`[data-act="tog"][data-arg="${k}"] .tog`); if (el) el.classList.toggle('off', !S.set[k]); save(); toast(`${{ sfx: '효과음', bgm: '배경음', haptic: '진동', dmg: '피해 숫자', shake: '화면 흔들림' }[k]} ${S.set[k] ? '켬' : '끔'}`); },
+    settings() {
+      open({ type: 'sheet', title: '설정', body: () => `<div class="setlist setgrid">${[['sfx', '효과음'], ['bgm', '배경음'], ['haptic', '진동', '안드로이드 · 아이폰은 단추만'], ['dmg', '피해 숫자'], ['shake', '화면 흔들림']].map(([k, n, sub]) => B('tog', k, 'setrow', `<span class="k">${n}${sub ? `<small>${sub}</small>` : ''}</span><span class="tog ${S.set[k] ? '' : 'off'}"></span>`)).join('')}</div>
+        <div class="sec-t">계정</div><div class="devgrid">${B('go', 'profile', 'btn sec', '내 정보')}${B('export', null, 'btn sec', '옮기기 코드')}${B('resetAsk', null, 'btn red', '처음 상태로')}${B('dev', null, 'btn sec', '🛠 개발 도구')}</div>
+        <div class="note" style="margin-top:14px">시안 v5.4 · 마블 디펜스</div>` });
+    },
+    // [v5.4] 개발 도구(나중에 뺄 것): 포탑 열고 닫기 · 재화 · 장 · 패스 · 출석 · 다음 시작 6·6
+    dev() {
+      open({ type: 'sheet', title: '🛠 개발 도구', body: () => `<div class="devnote">시험용이에요 · 출시 전 뺄 기능 · 저장에 바로 반영돼요</div>
+        <div class="sec-t">포탑</div><div class="devgrid">${B('devDo', 'openAll', 'btn green', '포탑 모두 열기')}${B('devDo', 'closeAll', 'btn sec', '포탑 처음처럼 닫기')}</div>
+        <div class="sec-t">재화</div><div class="devgrid">${B('devDo', 'gold', 'btn gold', '골드 +100,000')}${B('devDo', 'core', 'btn sec', '코어 +500')}${B('devDo', 'gem', 'btn sec', '보석 +5,000')}${B('devDo', 'zero', 'btn sec', '재화 0으로')}</div>
+        <div class="sec-t">진행</div><div class="devgrid">${B('devDo', 'chapters', 'btn sec', '장 · 난이도 모두 열기')}${B('devDo', 'pass', 'btn sec', '패스 +5단계')}${B('devDo', 'day', 'btn sec', '출석 다음 날')}${B('devDo', 'six', 'btn sec', '다음 시작 6·6')}${B('devDo', 'tree', 'btn sec', '나무 칸 모두 +5')}${B('devDo', 'shop', 'btn sec', '상점 하루 초기화')}</div>
+        <div class="note" style="margin-top:14px">지금 · 골드 ${fmt(S.gold)} · 코어 ${S.core} · 보석 ${fmt(S.gem)} · 열린 포탑 ${D.ALL.filter(owned).length}/${D.ALL.length}</div>` });
+    },
+    devDo(a) {
+      if (a === 'openAll') S.unlocked = Object.keys(M.UNLOCK);
+      if (a === 'closeAll') S.unlocked = [];
+      if (a === 'gold') S.gold += 100000;
+      if (a === 'core') S.core += 500;
+      if (a === 'gem') S.gem += 5000;
+      if (a === 'zero') { S.gold = 0; S.core = 0; S.gem = 0; }
+      if (a === 'chapters') for (let n = 1; n <= 6; n++) S.stars[n] = [Math.max(1, S.stars[n][0]), Math.max(1, S.stars[n][1]), Math.max(1, S.stars[n][2])];
+      if (a === 'pass') S.pass.lv = Math.min(30, S.pass.lv + 5);
+      if (a === 'day') { S.att.rolled = false; S.att.day = Math.min(28, S.att.day + 1); }
+      if (a === 'six') window.OG_FORCE = [6, 6];
+      if (a === 'tree') for (const f of M.FAMS) for (const nd of M.FAM_NODES) { const key = f.id + '.' + nd.id; S.nodes[key] = Math.min(nd.max || 1, (S.nodes[key] || 0) + 5); }
+      if (a === 'shop') Object.assign(S.shop, { free: false, goldBuy: 0, coreBuy: false });
+      ui.bump.gold = ui.bump.core = ui.bump.gem = 1; render(); renderModal(false);
+      toast({ openAll: '포탑을 모두 열었어요', closeAll: '포탑을 처음처럼 닫았어요', gold: '골드 +100,000', core: '코어 +500', gem: '보석 +5,000', zero: '재화를 0으로', chapters: '장 · 난이도를 모두 열었어요', pass: '패스 +5단계', day: '출석 다음 날', six: '다음 시작은 6·6', tree: '나무 칸 +5', shop: '상점을 하루 초기화' }[a]);
+    },
+    tog(k) { S.set[k] = S.set[k] ? 0 : 1; if (k === 'bgm') SND.music(); const el = document.querySelector(`[data-act="tog"][data-arg="${k}"] .tog`); if (el) el.classList.toggle('off', !S.set[k]); save(); toast(`${{ sfx: '효과음', bgm: '배경음', haptic: '진동', dmg: '피해 숫자', shake: '화면 흔들림' }[k]} ${S.set[k] ? '켬' : '끔'}`); },
     export() { let code = ''; try { code = btoa(unescape(encodeURIComponent(JSON.stringify({ n: S.name, lv: S.lv, g: S.gold, c: S.core, j: S.gem, st: S.stars })))); } catch (e) { code = '(만들기 실패)'; }
       open({ type: 'pop', title: '옮기기 코드', html: `<div class="codebox">${code}</div>`, msg: '<small>새 기기에서 이 코드를 넣으면 옮겨져요(시안)</small>', ok: '복사' }); ui.pending = () => { try { navigator.clipboard.writeText(code).then(() => toast('복사했어요'), () => toast('복사가 막혔어요 · 길게 눌러 복사하세요')); } catch (e) { toast('복사가 막혔어요 · 길게 눌러 복사하세요'); } }; },
     resetAsk() { confirm('처음 상태로', '시안 상태를 처음으로 되돌릴까요?<small>받은 보상 · 구매 · 장착이 모두 처음으로</small>', '되돌리기', () => { S = BASE_STATE(); Object.assign(ui, { hpawn: 0, hrolled: false, bubble: null, swap: null, lastRes: null, attHl: null, lastRoll: null, startBonus: null }); go('home'); toast('처음 상태가 됐어요'); }, 'red'); },
@@ -801,7 +874,7 @@
   const tgt = (x, y) => { const e = document.elementFromPoint(x, y); return e && e.closest('[data-act]'); };
   document.addEventListener('pointerdown', e => {
     const el = e.target.closest && e.target.closest('[data-act]'); if (!el || !stage().contains(el)) return;
-    P = { el, x: e.clientX, y: e.clientY, moved: false }; el.classList.add('press');
+    P = { el, x: e.clientX, y: e.clientY, moved: false }; el.classList.add('press'); SND.unlock();
   });
   document.addEventListener('pointermove', e => {
     if (!P) return;
@@ -812,8 +885,10 @@
     if (!P) return; const p = P; P = null; p.el.classList.remove('press');
     // 손가락이 18px 넘게 움직였으면(밖으로 뺌 · 스크롤) 취소. 손가락은 그대로인데 창이 올라오며 단추가 움직인 경우는 눌림으로 인정
     if (p.moved || !p.el.isConnected) return;
+    if (!['start', 'coop', 'endless', 'retry'].includes(p.el.dataset.act)) SND.click();
     const fn = A[p.el.dataset.act]; if (fn) { try { fn(p.el.dataset.arg); } catch (err) { console.error(err); toast('오류: ' + err.message); } }
   });
+  document.addEventListener('pointerdown', () => SND.unlock(), true);   // 단추 밖을 눌러도 소리 켜기(첫 터치)
   document.addEventListener('pointercancel', () => { if (P) { P.el.classList.remove('press'); P = null; } });
   document.addEventListener('input', e => { if (e.target.id === 'nmInp') ui.lastName = e.target.value; });
   document.addEventListener('contextmenu', e => e.preventDefault());
@@ -857,10 +932,11 @@
     </div>`;
   }
   const removeGame = () => { const f = $('game'); if (f) { f.src = 'about:blank'; f.remove(); } };
-  function backToOutgame(fn) { removeGame(); $('wrap').style.visibility = ''; ui.inGame = null; ui.gameMsg = null; fn(); setTimeout(() => xferHide(), 260); }
+  function backToOutgame(fn) { removeGame(); $('wrap').style.visibility = ''; ui.inGame = null; ui.gameMsg = null; fn(); setTimeout(() => xferHide(), 260); SND.music(); }
   function prepGame(mode, sb) {
     const wk = mode === 'weekly', n = wk ? 3 : S.chapter, di = wk ? 1 : DIFFS.indexOf(S.diff);   // 주간 도전 = 3장 · 어려움
     const G0 = ui.inGame = { mode, n: mode === 'endless' ? 1 : n, di, sb, ready: false, shown: false, go: false };
+    SND.music();
     const og = { choice: { commander: S.cmd, pawn: S.pawn, mode: mode === 'endless' ? 'endless' : 'conquest', coop: mode === 'coop', deck: deck().slice(), diff: mode === 'endless' ? 'normal' : DIFFS[di], chapter: n },
       bonus: sb ? sb.fx : null, bonusTxt: sb ? { d: sb.d.join('·'), txt: sb.txt } : null, meta: { nodes: S.nodes, unlocked: S.unlocked } };
     const fr = G0.fr = document.createElement('iframe'); fr.id = 'game'; fr.className = 'pre'; fr.title = '마블 디펜스 판'; fr.setAttribute('allow', 'autoplay; fullscreen');
@@ -954,7 +1030,12 @@
   // 덱 쟁반: 스크롤하면 고정선에 그늘 · 위(고정 칸)에서 휠을 굴려도 아래 목록이 움직임(엑셀 틀고정처럼)
   document.addEventListener('scroll', e => { const t = e.target; if (t && t.classList && t.classList.contains('tbody')) t.parentNode.classList.toggle('scrolled', t.scrollTop > 4); }, true);
   document.addEventListener('wheel', e => { if (ui.screen !== 'deck' || !e.target.closest || !e.target.closest('.deckfix')) return; const tb = document.querySelector('.tray .tbody'); if (tb) { tb.scrollTop += e.deltaY; e.preventDefault(); } }, { passive: false });
-  function fit() { const k = Math.min(innerWidth / 720, innerHeight / 1280); stage().style.transform = `scale(${k})`; document.querySelectorAll('[data-fit]').forEach(e => { e.style.transform = `translate(-50%, -50%) scale(${k})`; }); }
+  function fit() {
+    // [v5.4] 폰처럼 세로가 긴 화면은 무대 높이를 늘려 위아래 검은 띠를 없앤다(최대 1700) — 화면 요소는 위 · 아래에 붙어 있고, 로비 가운데 묶음은 늘어난 만큼의 절반 내려감
+    const W = innerWidth, H = innerHeight; let k = Math.min(W / 720, H / 1280), sh = 1280;
+    if (W / H < 720 / 1280) { sh = Math.min(1700, Math.round(H / (W / 720))); k = Math.min(W / 720, H / sh); }
+    const st = stage(); st.style.setProperty('--sh', sh + 'px'); st.style.setProperty('--ex', (sh - 1280) + 'px');
+    st.style.transform = `scale(${k})`; document.querySelectorAll('[data-fit]').forEach(e => { e.style.transform = `translate(-50%, -50%) scale(${k})`; }); }
   addEventListener('resize', fit);
   // 판 그림 미리 불러오기(장 바꿀 때 깜박임 없게)
 

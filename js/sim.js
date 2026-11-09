@@ -5,7 +5,7 @@
   const D = isNode ? require('./data.js') : root.DATA;
   const G = isNode ? require('./geom.js') : root.GEOM;
   const META = isNode ? require('./meta.js') : root.META;
-  const { LANDFX, FX_OF, TOWERS, DECK, TIER, MONSTERS, BOSSES, TRAITS, MAP1, CORNER, UPGRADE_COST, COMMANDERS, CARDS, KEYS, MISSIONS, ECON } = D;
+  const { LANDFX, FX_OF, TOWERS, DECK, TIER, MONSTERS, BOSSES, TRAITS, MAP1, CORNER, UPGRADE_COST, COMMANDERS, CARDS, CARD_ODDS, CARD_PITY, KEYS, MISSIONS, ECON } = D;
 
   function rng(seed) {
     let a = seed >>> 0;
@@ -40,6 +40,7 @@
       this.rollQ = []; this.lockUntil = 0; this.doubles = 0;
       this.offer = null; this.pick = null; this.combo = 0; this.comboMax = 0;
       this.goldenDice = 0; this.shield = 0; this.cards = []; this.cardPick = null; this.cardPicks = 0;
+      this.pity = Object.assign({ e: 0, l: 0 }, opt.pity || {});   // [v5.4] 높은 등급 보정(판을 넘어 이어짐 — 화면 쪽이 저장)
       this.upg = {}; this.deck.forEach(k => (this.upg[k] = 0));
       this.cmd = { id: this.cmdId, readyAt: 10, until: 0 };
       this.truck = { calls: 0, readyAt: 0 };
@@ -214,6 +215,7 @@
       let a = T.aps * TIER.aps[tw.tier] * (1 + add);
       if (t.trait === 'web') a *= 0.8;
       if (this.fxOn('aps')) a *= 1 + LANDFX.aps.v;
+      if (this.has('haste')) a *= 1.2;   // [v5.4] 질풍
       if (this.fxOn('apsDown')) a *= 1 - LANDFX.apsDown.v;
       if (this.t < (tw.blessUntil || 0)) a *= 2;
       if (this.t < (tw.barrageUntil || 0)) a *= 3;
@@ -448,7 +450,7 @@
       // [v4.0] 미리 굴려 둘 수 있는 건 1번까지(줄이 길면 착지 결정 · 단계업 기회가 밀려 사라짐)
       if (this.rollQ.length >= ECON.rollQMax) return false;
       if (rescue) this.emit('rescueRoll', {}); else if (this.freeRolls > 0) this.freeRolls--; else { this.gold -= this.rollCost; this.emit('spend', { amt: this.rollCost, why: 'roll' }); }
-      this.rollCost += this.has('quickhand') ? Math.max(1, ECON.rollStep - 1) : ECON.rollStep;
+      if (!this.has('midas')) this.rollCost += this.has('quickhand') ? Math.max(1, ECON.rollStep - 1) : ECON.rollStep;   // [v5.4] 미다스의 손 = 더 안 오름
       this.rolls++; this.stats.rolls++; this.lastRollT = this.t;
       this.rollQ.push(this.throwDice(aim));
       this.emit('rollBtn', { aim: aim || 0 });
@@ -721,16 +723,28 @@
       const r = this.round;
       // [v4.2] 판 시작(라운드 0) = 시작 카드 풀(st 1 · 2), 중간 = 시작 전용(st 2) 빼고 전부
       const start = r === 0;
-      const w = start ? { c: 60, r: 35, l: 5 } : r < 5 ? { c: 70, r: 30, l: 0 } : r < 10 ? { c: 60, r: 35, l: 5 } : r < 15 ? { c: 40, r: 45, l: 15 } : { c: 30, r: 50, l: 20 };
+      let w = CARD_ODDS[0][1]; for (const [r0, o] of CARD_ODDS) if ((start ? 0 : Math.max(1, r)) >= r0) w = o;
+      w = Object.assign({}, w);
+      const PE = CARD_PITY.e, PL = CARD_PITY.l, pity = this.pity;
+      w.e += Math.max(0, pity.e - PE.from + 1) * PE.step; w.l += Math.max(0, pity.l - PL.from + 1) * PL.step;
       const pool = Object.keys(CARDS).filter(k => !this.cards.includes(k) && (start ? CARDS[k].st : CARDS[k].st !== 2));
-      const opts = [];
+      const opts = [], rank = { c: 0, r: 1, e: 2, l: 3 };
+      const sureL = pity.l + 1 >= PL.sure, sureE = pity.e + 1 >= PE.sure;
       for (let n = 0; n < 3 && pool.length; n++) {
-        const x = this.r() * 100, g = x < w.l ? 'l' : x < w.l + w.r ? 'r' : 'c';
+        let g;
+        if (n === 0 && sureL) g = 'l';
+        else if (n === 0 && sureE) g = 'e';
+        else { const tot = w.c + w.r + w.e + w.l, x = this.r() * tot; g = x < w.l ? 'l' : x < w.l + w.e ? 'e' : x < w.l + w.e + w.r ? 'r' : 'c'; }
         let cand = pool.filter(k => CARDS[k].g === g && !opts.includes(k));
+        // 그 등급이 다 떨어졌으면 한 단계씩 낮춰서
+        for (let gg = rank[g] - 1; !cand.length && gg >= 0; gg--) cand = pool.filter(k => rank[CARDS[k].g] === gg && !opts.includes(k));
         if (!cand.length) cand = pool.filter(k => !opts.includes(k));
         if (!cand.length) break;
         opts.push(this.pickOne(cand));
       }
+      const best = Math.max(...opts.map(k => rank[CARDS[k].g]));
+      pity.e = best >= 2 ? 0 : pity.e + 1; pity.l = best >= 3 ? 0 : pity.l + 1;
+      this.emit('pity', { e: pity.e, l: pity.l });
       this.cardPick = { opts, left: picks || 1, rerolls: 0 };
       this.paused = true;
       this.emit('cardPick', {});

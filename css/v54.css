@@ -1,0 +1,81 @@
+/* [v5.4] 본편 판 UI 다듬기 — style.css 위에 덮어씀
+   사용자: '모든 단추에 색 실선 테두리 · 코드로 만든 느낌' → 이중 테(크림 + 자두) 대신 한 겹 어두운 테 + 부드러운 그늘 · 광택
+   · AUTO = 켜고 끄는 스위치(꺼짐: 회색 · 손잡이 왼쪽 / 켜짐: 초록 · 손잡이 오른쪽 · 빛)
+   · 작전 카드 4등급(일반 · 희귀 · 영웅 · 전설) — 등급마다 테 색 · 빛 · 반짝이 세기가 다름 */
+
+/* ---------------- AUTO 스위치 */
+#autoBtn { display: flex; align-items: center; gap: 0; left: 10px; top: 8px; width: 96px; height: 32px; padding: 0 10px 0 34px; border-radius: 16px; font-size: 0;
+  background: linear-gradient(#3b3552, #2a2540); border: 0; box-shadow: inset 0 2px 4px #0008, 0 1px 0 #ffffff30; text-shadow: none; transition: background .18s; }
+#autoBtn b { font-size: 15px; letter-spacing: 1px; color: #a8a2c4; font-weight: 400; transition: color .18s; }
+#autoBtn .kn { position: absolute; left: 4px; top: 4px; width: 24px; height: 24px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ffffff, #c8c2dc 70%); box-shadow: 0 2px 3px #0007; transition: left .2s cubic-bezier(.3,1.4,.5,1); }
+#autoBtn.on { background: linear-gradient(#6be27a, #2f9e40); box-shadow: inset 0 2px 3px #0005, 0 0 14px #6be27a99; padding: 0 34px 0 12px; animation: none; }
+#autoBtn.on b { color: #fff; text-shadow: 0 1px 0 #1d5a26; }
+#autoBtn.on .kn { left: 68px; background: radial-gradient(circle at 35% 30%, #ffffff, #e8fff0 70%); }
+
+/* ---------------- 작전 카드 */
+.mbox:has(.cards) { background: radial-gradient(ellipse at 50% 0%, #4a3a8a 0, transparent 60%), linear-gradient(#262048, #17122e); border: 0; box-shadow: 0 0 0 2px #00000080, 0 30px 80px #000c, inset 0 1px 0 #ffffff26; }
+.cards { gap: 16px; }
+.card { --g1: #b8c0d4; --g2: #6c7590; --glow: transparent; position: relative; min-height: 330px; padding: 40px 12px 16px; border: 0; border-radius: 18px;
+  background: linear-gradient(#2e2952, #1d1838) padding-box, linear-gradient(160deg, var(--g1), var(--g2)) border-box; border: 5px solid transparent;
+  box-shadow: 0 10px 24px #000a, 0 0 26px var(--glow); overflow: hidden; }
+.card::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 120px; background: radial-gradient(ellipse at 50% 80%, color-mix(in srgb, var(--g1) 45%, transparent), transparent 70%); pointer-events: none; }
+.card .g { position: absolute; top: 0; left: 50%; transform: translateX(-50%); min-width: 92px; padding: 4px 16px 6px; border-radius: 0 0 14px 14px; font-size: 16px; letter-spacing: 2px; color: #1d1838; background: linear-gradient(var(--g1), var(--g2)); text-shadow: 0 1px 0 #ffffff80; box-shadow: 0 3px 6px #0006; }
+.card .ico { position: relative; width: 104px; height: 104px; margin-top: 4px; background: radial-gradient(circle, color-mix(in srgb, var(--g1) 35%, transparent) 0, transparent 70%); }
+.card .ico img { width: 84px; height: 84px; filter: drop-shadow(0 4px 0 #0007); }
+.card .nm { font-size: 27px; color: #fff; }
+.card .ds { font-size: 18px; color: #e8e0ff; }
+.card.c { --g1: #d4dae8; --g2: #7c86a0; }
+.card.r { --g1: #9ad8ff; --g2: #2a7ad8; --glow: #4aa8ff55; box-shadow: 0 10px 24px #000a, 0 0 26px #4aa8ff55; }
+.card.e { --g1: #e6b8ff; --g2: #8a3ae0; --glow: #b05cff77; box-shadow: 0 10px 24px #000a, 0 0 32px #b05cff77; }
+.card.l { --g1: #fff2a0; --g2: #ff8a1c; --glow: #ffc21caa; background: linear-gradient(#4a3416, #23170c) padding-box, conic-gradient(from var(--ang, 0deg), #fff2a0, #ff8a1c, #ff4a5e, #ffd23a, #fff2a0) border-box; box-shadow: 0 10px 24px #000a, 0 0 40px #ffc21caa; }
+.card.l .nm { color: #fff2c0; }
+/* 영웅 · 전설: 빛이 지나감 */
+.card.e::after, .card.l::after { content: ''; position: absolute; top: -20%; bottom: -20%; width: 46px; left: -80px; background: linear-gradient(90deg, transparent, #ffffff70, transparent); transform: skewX(-18deg); animation: cardShine 2.4s 1.3s ease-in-out infinite; pointer-events: none; }
+@keyframes cardShine { 0% { left: -80px; } 45%, 100% { left: 260px; } }
+/* 전설: 테두리 빛이 돎 + 뒤에서 빛살 */
+@property --ang { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+.cards.reveal .card.l { animation: cardIn .4s cubic-bezier(.3, 1.4, .5, 1) backwards, cardFlip .36s ease-in-out backwards, legSpin 3s linear infinite; animation-delay: calc(var(--k) * .1s), calc(.42s + var(--k) * .22s), 0s; }
+@keyframes legSpin { to { --ang: 360deg; } }
+.card.l .ico::before { content: ''; position: absolute; inset: -30px; background: repeating-conic-gradient(#ffe28a40 0 10deg, transparent 10deg 30deg); border-radius: 50%; -webkit-mask: radial-gradient(circle, #000 30%, transparent 70%); mask: radial-gradient(circle, #000 30%, transparent 70%); animation: raySpin 8s linear infinite; }
+@keyframes raySpin { to { transform: rotate(360deg); } }
+/* 카드 뒷면(덮개)도 한 겹 테로 */
+.card .cover { inset: 0; border-radius: 13px; border: 0; box-shadow: inset 0 0 0 3px #ffd23a88; }
+/* 보정 표시 */
+.pityrow { display: flex; justify-content: center; gap: 18px; margin: -4px 0 12px; font-size: 15px; color: #cfc6e6; }
+.pityrow span { display: flex; align-items: center; gap: 6px; }
+.pityrow i { display: inline-block; width: 70px; height: 8px; border-radius: 4px; background: #0006; overflow: hidden; position: relative; }
+.pityrow i::after { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: var(--p); border-radius: 4px; background: linear-gradient(90deg, var(--a), var(--b)); }
+
+/* 예전 style.css의 등급별 단색 테(border-color)가 그라데이션 테를 덮지 않게 */
+.card, .card.c, .card.r, .card.e, .card.l { border-color: transparent !important; }
+.card .g, .card.r .g, .card.l .g { color: #1d1430; text-shadow: 0 1px 0 #ffffff99; font-weight: 400; }
+.card.l .g { color: #4a2400; }
+
+/* ---------------- 판 HUD · 아래 패널 · 창: 이중 테(크림 + 자두) 걷기 → 빛 + 그늘 */
+.pill { border: 0; background: linear-gradient(rgba(14,10,34,.82), rgba(14,10,34,.68)); box-shadow: 0 4px 10px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.14); }
+.hudbox { border: 0; background: linear-gradient(rgba(20,16,44,.9), rgba(20,16,44,.78)); box-shadow: 0 6px 14px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.14); }
+.chip { border: 0; box-shadow: 0 2px 6px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.12); }
+.chip.r { box-shadow: inset 0 0 0 0 transparent, 0 0 10px #4aa8ff88; } .chip.l { box-shadow: 0 0 12px #ffd23a88; }
+#panel { border-top: 0; background: linear-gradient(#2a2350, #1a1534); box-shadow: 0 -2px 0 rgba(255,255,255,.1), 0 -18px 34px rgba(0,0,0,.5); }
+.slot { border: 0; background: linear-gradient(#332b62, #241e4a); box-shadow: 0 6px 12px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.16); }
+#rollBtn { border: 0; background: linear-gradient(#ffc56a, #ff9330 55%, #f07a1a); box-shadow: 0 7px 0 #b8561a, 0 12px 20px rgba(0,0,0,.4), inset 0 2px 0 rgba(255,255,255,.5); }
+.deck { border: 0; background: linear-gradient(#2e2860, #221c48); box-shadow: 0 6px 12px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.15); }
+.deck .lv { box-shadow: 0 2px 4px rgba(0,0,0,.4); }
+.roundbtn { border: 0; background: radial-gradient(circle at 50% 35%, #3a3272, #1f1a40); box-shadow: 0 6px 14px rgba(0,0,0,.5), inset 0 2px 0 rgba(255,255,255,.2), inset 0 0 0 3px rgba(255,255,255,.08); }
+.roundbtn .tag { border: 0; background: linear-gradient(#3a3272, #241e4e); box-shadow: 0 2px 6px rgba(0,0,0,.45); }
+.roundbtn.ready { animation: ready2 1s infinite; }
+@keyframes ready2 { 50% { box-shadow: 0 6px 14px rgba(0,0,0,.5), 0 0 26px 6px #ffd23a99, inset 0 2px 0 rgba(255,255,255,.2); } }
+#toast { border: 0; background: linear-gradient(rgba(34,28,66,.97), rgba(22,18,44,.97)); box-shadow: 0 16px 40px #000a, inset 0 1px 0 rgba(255,255,255,.18), inset 0 0 0 2px #ffd23a88; }
+#toast.bad { box-shadow: 0 16px 40px #000a, inset 0 0 0 2px #b98cff88; }
+.mbox { border: 0; background: radial-gradient(ellipse at 50% 0%, #3e347a 0, transparent 60%), linear-gradient(#262048, #17122e); box-shadow: 0 30px 80px #000c, inset 0 1px 0 rgba(255,255,255,.2); }
+.btn { border: 0; background: linear-gradient(#ffc56a, #ff9330 55%, #f07a1a); box-shadow: 0 5px 0 #b8561a, 0 10px 16px rgba(0,0,0,.35), inset 0 2px 0 rgba(255,255,255,.5); }
+.btn.sec { border: 0; background: linear-gradient(rgba(255,255,255,.16), rgba(255,255,255,.07)); box-shadow: 0 4px 0 rgba(0,0,0,.35), 0 8px 14px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.22); }
+.btn.green { border: 0; background: linear-gradient(#86ec8e, #45c255 55%, #2fa543); box-shadow: 0 5px 0 #1f7a2e, 0 10px 16px rgba(0,0,0,.35), inset 0 2px 0 rgba(255,255,255,.5); }
+
+/* 폰 세로 화면: 위 띠 = 어두운 하늘, 아래 띠 = 아래 패널과 같은 색으로 이어짐(검은 띠 · 무대 검은 테 없음) */
+html, body { background: linear-gradient(#0e0b1c 0 50%, #1a1534 50% 100%); }
+#stage { box-shadow: none; }
+/* 예전 .card.r 바탕(우선순위 높음)이 그라데이션 테를 덮지 않게 등급마다 다시 지정 */
+.card.c, .card.r, .card.e { background: linear-gradient(#2e2952, #1d1838) padding-box, linear-gradient(160deg, var(--g1), var(--g2)) border-box; }
+.card.e { background: linear-gradient(#35225a, #1f1438) padding-box, linear-gradient(160deg, var(--g1), var(--g2)) border-box; }
+.card.r { background: linear-gradient(#22305c, #18203e) padding-box, linear-gradient(160deg, var(--g1), var(--g2)) border-box; }

@@ -41,7 +41,7 @@
       this.renderer.fx = []; this.renderer.parts = []; this.renderer.texts = []; this.renderer.coins = []; this.renderer.towerAnim = {}; this.renderer.dice = null;
       const seed = seedIn || +(Q.get('seed') || 0) || (Date.now() & 0xffffff);
       const deck = Array.isArray(choice.deck) && choice.deck.length === 5 ? choice.deck : DATA.DECK;
-      this.game = new SIM.Game({ seed, commander: choice.commander, pawn: choice.pawn, mode: choice.mode, deck, diff: choice.diff || 'normal', chapter: choice.mode === 'endless' ? 1 : (choice.chapter || 1), meta: META.bonus(this.embedMeta || META.load()), coop: choice.mode !== 'endless' && choice.coop ? (choice.coop === 'human' ? 'human' : true) : false, autoTier: !this.net && (() => { try { return JSON.parse(localStorage.getItem('marble_autoTier') || 'false'); } catch (e) { return false; } })() });
+      this.game = new SIM.Game({ seed, commander: choice.commander, pawn: choice.pawn, mode: choice.mode, deck, diff: choice.diff || 'normal', chapter: choice.mode === 'endless' ? 1 : (choice.chapter || 1), meta: META.bonus(this.embedMeta || META.load()), coop: choice.mode !== 'endless' && choice.coop ? (choice.coop === 'human' ? 'human' : true) : false, autoTier: !this.net && (() => { try { return JSON.parse(localStorage.getItem('marble_autoTier') || 'false'); } catch (e) { return false; } })(), pity: (() => { try { return JSON.parse(localStorage.getItem('marble_cardPity') || 'null'); } catch (e) { return null; } })() || undefined });
       this.renderer.boardKey = this.game.CH.board;
       if (this.net && this.net.open) {
         const net = this.net; net.ls = new NET.Lockstep(this.game, net.role === 'host' ? 1 : 2, m => net.link.send(m));
@@ -132,7 +132,7 @@
         const ev = g.events.splice(0);
         this.renderer.consume(g, ev, SFX);
         if (root.HAPTIC) root.HAPTIC.consume(g, ev);
-        for (const e of ev) this.ui.onEvent(e);
+        for (const e of ev) { this.ui.onEvent(e); if (e.ev === 'pity') { try { localStorage.setItem('marble_cardPity', JSON.stringify({ e: e.e, l: e.l })); } catch (x) { /* 저장 안 됨 */ } } }
         if (g.boss && SFX.bgmKind !== 'boss' && !g.over) SFX.music('boss');
         if (!g.boss && SFX.bgmKind === 'boss' && !g.over) SFX.music('battle');
         this.renderer.frame(g, this.paused || this.ui.modalOpen() ? 0 : dt * Math.min(speed, 2), this.ui);

@@ -431,7 +431,7 @@ body { font-weight: 400; letter-spacing: .2px; }
 /* [v4.8] 아이폰 진동: 단추 위 투명 스위치(실제 터치에만 틱이 난다) */
 .hp-ios { position: absolute; inset: 0; opacity: 0; z-index: 2; margin: 0; }
 .hp-ios input { position: absolute; left: 0; top: 0; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }   /* 스위치 자체가 터치를 받으면 click이 단추까지 안 올라감 */
-button:has(> .hp-ios) { position: relative; }
+:where(button:has(> .hp-ios)) { position: relative; }   /* [v5.4] :where = 우선순위 0 — 아이폰에서 수송차 · 2P처럼 위치가 정해진 단추를 relative로 덮어써 왼쪽 아래로 밀던 버그 */
 body.no-haptic .hp-ios { display: none; }
 
 /* [v5.3 폰 점검] '자동'은 아이폰 진동용 투명 덮개(.hp-ios, z 2)보다 위 — 아니면 아이폰에서 '자동'을 눌러도 굴리기가 눌림. 보이는 크기는 그대로, 눌리는 곳만 넓힘 */

@@ -48,7 +48,7 @@
       roll.addEventListener('pointerup', () => up(false));
       roll.addEventListener('pointercancel', () => up(true));
       if (root.HAPTIC && root.HAPTIC.ios) roll.addEventListener('pointerleave', () => up(true));
-      $('autoBtn').addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); s.init(); this.auto = !this.auto; $('autoBtn').classList.toggle('on', this.auto); s.click && s.click(); });
+      $('autoBtn').addEventListener('pointerdown', e => { e.stopPropagation(); e.preventDefault(); s.init(); this.auto = !this.auto; $('autoBtn').classList.toggle('on', this.auto); $('autoBtn').setAttribute('aria-checked', this.auto ? 'true' : 'false'); s.click && s.click(); });
       $('ocNo').addEventListener('pointerdown', e => { e.stopPropagation(); s.init(); if (this.g && this.app.cmd('skipOffer')) $('offerCard').hidden = true; });
       $('ocAuto').addEventListener('change', e => { this.app.cmd('setAutoTier', [e.target.checked]); store.set('autoTier', e.target.checked); });
       $('gdBtn').addEventListener('click', () => {
@@ -554,10 +554,11 @@
     }
     cardModal() {
       const g = this.g, cp = g.cardPick;
-      const G2 = { c: '일반', r: '희귀', l: '전설' };
-      const ICON = { quickhand: '⚡', bighand: '💰', sharp: '🗡', wall: '🧱', fortx2: '🏰', fort4: '🏯', strikex2: '💥', tierdisc: '🏷', lift: '⬆', reclaim: '🌱', focus: '🎯', critEye: '👁', lonely: '🗼', deal: '😈', salary: '💵', seed: '🏗', freeroll: '🆓', gdice2: '🎲' };
+      const G2 = { c: '일반', r: '희귀', e: '영웅', l: '전설' };
+      const ICON = { quickhand: '⚡', bighand: '💰', sharp: '🗡', wall: '🧱', fortx2: '🏰', fort4: '🏯', strikex2: '💥', tierdisc: '🏷', lift: '⬆', reclaim: '🌱', focus: '🎯', critEye: '👁', lonely: '🗼', deal: '😈', salary: '💵', seed: '🏗', freeroll: '🆓', gdice2: '🎲', haste: '🌪', midas: '👑', elemental: '🔥', awaken: '✨' };
       const cost = cp.rerolls === 0 ? '무료' : (15 * cp.rerolls) + '금화', rr = cp.rerolls === 0 || g.gold - 15 * cp.rerolls >= g.rollCost;
       const m = this.open(`<div class="mbox" style="width:690px"><h2>작전 카드</h2><p class="sub">${g.round === 0 ? '판 시작 — 이번 판의 전략을 고르세요' : '보스 처치 보상'}${cp.left > 1 ? ' · ' + cp.left + '장 남음' : ''}</p>
+        ${(() => { const P = D.CARD_PITY, pe = g.pity ? g.pity.e : 0, pl = g.pity ? g.pity.l : 0; return `<div class="pityrow"><span>영웅 보장까지 ${P.e.sure - pe}묶음 <i style="--p:${pe / P.e.sure * 100}%;--a:#c88aff;--b:#8a3ae0"></i></span><span>전설 보장까지 ${P.l.sure - pl}묶음 <i style="--p:${pl / P.l.sure * 100}%;--a:#ffe28a;--b:#ff8a1c"></i></span></div>`; })()}
         <div class="cards reveal">${cp.opts.map((id, k) => `<button class="card ${D.CARDS[id].g}" data-k="${k}" style="--k:${k}"><i class="cover"></i><span class="g">${G2[D.CARDS[id].g]}</span><div class="ico"><img src="${this.img('k_' + id)}" alt="" onerror="this.replaceWith(document.createTextNode('${ICON[id] || '★'}'))"></div><div class="nm">${D.CARDS[id].name}</div><div class="ds">${D.CARDS[id].desc}</div></button>`).join('')}</div>
         <div class="btns"><button class="btn sec" data-act="reroll"${rr ? '' : ' disabled title="굴릴 금화는 남겨 둬요"'}>다시 뽑기 (${cost})${rr ? '' : ' · 금화 부족'}</button></div></div>`);
       root.SFX.card();
@@ -634,7 +635,7 @@
         if (b.dataset.act === 'again') this.app.start(this.choice); else this.app.toLobby();
       };
     }
-    reset() { this._overShown = false; this._gold = null; this._chips = null; this._combo = null; $('offerCard').hidden = true; this.auto = false; $('autoBtn').classList.remove('on'); this.hideInfo(); $('toast').hidden = true; }
+    reset() { this._overShown = false; this._gold = null; this._chips = null; this._combo = null; $('offerCard').hidden = true; this.auto = false; $('autoBtn').classList.remove('on'); $('autoBtn').setAttribute('aria-checked', 'false'); this.hideInfo(); $('toast').hidden = true; }
   }
   root.UI = UI;
   root.STORE = store;

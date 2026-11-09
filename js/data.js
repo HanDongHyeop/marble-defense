@@ -144,28 +144,37 @@
 
   // 작전 카드 — 등급: c 일반 · r 희귀 · l 전설
   // [v4.2] st: 1 = 판 시작 카드로도 나옴 · 2 = 시작에만 나옴. 표시 없음 = 중간(보스 처치)에만 — 시작엔 포탑이 없어 소용없는 카드(끌어올리기 · 요새 · 출동 · 단계업 등)를 빼려고(사용자 지적)
+  // [v5.4] 작전 카드 4등급: c 일반 · r 희귀 · e 영웅 · l 전설(사용자: '일반/희귀/영웅/전설 · 전설이 가장 좋지만 덜 나오게 · 너무 안 나오면 안 됨 → 보정')
+  // st: 1 = 판 시작 카드로도 나옴 · 2 = 시작에만 나옴. 표시 없음 = 중간(보스 처치)에만
   const CARDS = {
     quickhand: { name: '빠른 손',     g: 'c', st: 1, desc: '굴리기 비용이 +2 대신 +1씩 오른다' },
     bighand:   { name: '큰손',        g: 'c', st: 1, desc: '금화 +라운드×3 (최소 20) 즉시' },
     sharp:     { name: '날카로운 탄', g: 'c', st: 1, desc: '1~3단계 포탑 피해 +25%' },
     wall:      { name: '단단한 성벽', g: 'c', st: 1, desc: '허용 몬스터 수 +8' },
-    fortx2:    { name: '철통 요새',   g: 'r', desc: '요새 효과 2배' },
-    fort4:     { name: '4칸 요새',    g: 'r', desc: '4칸만 채워도 요새' },
-    strikex2:  { name: '출동 대장',   g: 'r', desc: '출동 피해 2배' },
-    tierdisc:  { name: '단계업 할인', g: 'r', desc: '착지 단계업 비용 −25%' },
-    lift:      { name: '끌어올리기',  g: 'r', desc: '가장 낮은 단계 포탑 2개 즉시 +1단계' },
-    reclaim:   { name: '개간',        g: 'r', st: 1, desc: '평지 2칸을 무작위 좋은 땅으로' },
-    focus:     { name: '집중 사격',   g: 'r', st: 1, desc: '덱의 무작위 한 종류 피해 +40%' },
-    critEye:   { name: '치명의 눈',   g: 'r', st: 1, desc: '치명 확률 +10%, 치명 피해 +30%' },
-    lonely:    { name: '고독한 탑',   g: 'l', desc: '판 위 포탑이 8개 이하면 모든 피해 +50%' },
-    deal:      { name: '위험한 거래', g: 'l', st: 1, desc: '허용 몬스터 수 −10, 모든 피해 +50%' },
-    salary:    { name: '두둑한 월급', g: 'l', st: 1, desc: '월급 2배' },
-    elemental: { name: '원소 폭주',   g: 'r', desc: '속성 반응 피해 2배' },
-    awaken:    { name: '각성 맛보기', g: 'l', desc: '덱의 무작위 한 종류 — 전설 각성을 4단계부터 미리 켠다' },
     seed:      { name: '첫 진지',     g: 'c', st: 2, desc: '빈 땅 2칸에 1단계 포탑을 바로 짓는다' },
     freeroll:  { name: '공짜 굴림',   g: 'c', st: 2, desc: '처음 5번은 금화 없이 굴린다' },
+    fortx2:    { name: '철통 요새',   g: 'r', desc: '요새 효과 2배' },
+    fort4:     { name: '4칸 요새',    g: 'r', desc: '4칸만 채워도 요새' },
+    tierdisc:  { name: '단계업 할인', g: 'r', desc: '착지 단계업 비용 −25%' },
+    reclaim:   { name: '개간',        g: 'r', st: 1, desc: '평지 2칸을 무작위 좋은 땅으로' },
+    focus:     { name: '집중 사격',   g: 'r', st: 1, desc: '덱의 무작위 한 종류 피해 +40%' },
     gdice2:    { name: '황금 주사위 둘', g: 'r', st: 2, desc: '황금 주사위 +2 (원하는 칸으로 두 번)' },
+    strikex2:  { name: '출동 대장',   g: 'e', desc: '출동 피해 2배' },
+    lift:      { name: '끌어올리기',  g: 'e', desc: '가장 낮은 단계 포탑 2개 즉시 +1단계' },
+    critEye:   { name: '치명의 눈',   g: 'e', st: 1, desc: '치명 확률 +10%, 치명 피해 +30%' },
+    elemental: { name: '원소 폭주',   g: 'e', desc: '속성 반응 피해 2배' },
+    salary:    { name: '두둑한 월급', g: 'e', st: 1, desc: '월급 2배' },
+    haste:     { name: '질풍',        g: 'e', st: 1, desc: '모든 포탑 공격 속도 +20%' },
+    lonely:    { name: '고독한 탑',   g: 'l', desc: '판 위 포탑이 8개 이하면 모든 피해 +50%' },
+    deal:      { name: '위험한 거래', g: 'l', st: 1, desc: '허용 몬스터 수 −10, 모든 피해 +50%' },
+    awaken:    { name: '각성 맛보기', g: 'l', desc: '덱의 무작위 한 종류 — 전설 각성을 4단계부터 미리 켠다' },
+    midas:     { name: '미다스의 손', g: 'l', st: 1, desc: '굴리기 비용이 더 오르지 않는다' },
   };
+  // 등급별 기본 확률(카드 한 장마다, %) — 판이 깊어질수록 높은 등급이 잦아짐
+  const CARD_ODDS = [[0, { c: 58, r: 30, e: 10, l: 2 }], [1, { c: 58, r: 30, e: 10, l: 2 }], [5, { c: 50, r: 32, e: 14, l: 4 }], [10, { c: 42, r: 34, e: 18, l: 6 }], [15, { c: 34, r: 36, e: 22, l: 8 }]];
+  // 보정(천장): 영웅 이상이 안 나온 묶음이 쌓이면 영웅 +4%p씩(2묶음부터) · 4묶음째 1장은 반드시 영웅 이상 /
+  //            전설이 안 나온 묶음이 쌓이면 전설 +2%p씩(4묶음부터) · 10묶음째 1장은 반드시 전설. 묶음 수는 판을 넘어 이어짐(기기 저장)
+  const CARD_PITY = { e: { from: 2, step: 4, sure: 4 }, l: { from: 4, step: 2, sure: 10 } };
   const KEYS = {
     space:   { name: '우주여행권',  good: true,  desc: '다음 굴림은 원하는 칸으로' },
     world:   { name: '세계일주 진군', good: true, desc: '한 바퀴 돌며 지나는 칸마다 쿵! + 월급' },
@@ -229,6 +238,6 @@
     hell:   { name: '지옥', hp: 1.6, badLand: 4, fortHalf: true, limit: 40, fastBoss: true, desc: '체력 ×1.6 · 나쁜 땅 +4 · 요새 절반 · 한도 40 · 보스 교란 빠름' },
   };
   const REACT = { thermal: '열충격!', superc: '초전도!', toxic: '유독 폭발!', shatter: '파쇄!' };
-  const DATA = { LANDFX, FX_OF, RANGE_T, DIFF, TOWERS, ALL, PRESETS, AWAKEN, REACT, DECK, TIER, STRIKE, MONSTERS, BOSSES, TRAITS, MAP1, CORNER, ZONE_COLOR, ZONE_NAME, UPGRADE_COST, COMMANDERS, PAWNS, CARDS, KEYS, MISSIONS, ECON };
+  const DATA = { LANDFX, FX_OF, RANGE_T, DIFF, TOWERS, ALL, PRESETS, AWAKEN, REACT, DECK, TIER, STRIKE, MONSTERS, BOSSES, TRAITS, MAP1, CORNER, ZONE_COLOR, ZONE_NAME, UPGRADE_COST, COMMANDERS, PAWNS, CARDS, CARD_ODDS, CARD_PITY, KEYS, MISSIONS, ECON };
   if (typeof module !== 'undefined' && module.exports) module.exports = DATA; else root.DATA = DATA;
 })(typeof window !== 'undefined' ? window : globalThis);
