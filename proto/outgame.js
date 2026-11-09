@@ -1039,7 +1039,7 @@
   addEventListener('resize', fit);
   // 판 그림 미리 불러오기(장 바꿀 때 깜박임 없게)
 
-  window.OG = { S: () => S, ui, A, go, render, rollStart, dblChance, game: () => $('game'), lobbyIntro, finishGame };   // 검수용
+  window.OG = { S: () => S, ui, A, go, render, rollStart, dblChance, game: () => $('game'), lobbyIntro, finishGame, snd: SND };   // 검수용
   const q = new URLSearchParams(location.search), s0 = q.get('s') || 'home';
   fit();
   ui.lastName = S.name;
