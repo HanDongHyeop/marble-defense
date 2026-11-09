@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>마블 디펜스</title>
+<meta name="theme-color" content="#1a1236">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="마블 디펜스">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="img/app/icon-192.png">
+<link rel="apple-touch-icon" href="img/app/icon-180.png">
+<link rel="preload" href="img/load_key.jpg" as="image">
+<link rel="stylesheet" href="../css/font.css?v=202611091555">
+<link rel="stylesheet" href="outgame.css?v=202611091555">
+<link rel="stylesheet" href="outgame52.css?v=202611091555">
+<link rel="stylesheet" href="outgame53.css?v=202611091555">
+</head>
+<body>
+<!-- [v5.3 시안] 레이어(창 전체): #wrap(시안 화면: #bg → #scr → #modal → #toast → #fx) 0 → #game(본편 판 iframe) 90 → #xfer(진입/전환 막) 100 → #boot(첫 로딩) 110 -->
+<div id="wrap"><div id="stage"><div id="bg"></div><div id="scr"></div><div id="modal"></div><div id="toast"></div><div id="fx"></div></div></div>
+<div id="boot">
+  <div class="bkey"></div><div class="btwinkle"></div>
+  <div class="bstage" data-fit>
+    <div class="blogo">
+      <svg viewBox="0 0 660 360" aria-label="마블 디펜스">
+        <defs>
+          <linearGradient id="lgA" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6b8"/><stop offset=".42" stop-color="#ffcf3a"/><stop offset="1" stop-color="#ff7a1a"/></linearGradient>
+          <linearGradient id="lgB" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f2fcff"/><stop offset=".45" stop-color="#8fdcff"/><stop offset="1" stop-color="#4a7ef0"/></linearGradient>
+          <linearGradient id="lgG" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".85"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+          <clipPath id="lgClip"><text x="318" y="168" font-size="172" text-anchor="middle">마블</text><text x="342" y="318" font-size="132" text-anchor="middle">디펜스</text></clipPath>
+        </defs>
+        <g class="lw" transform="rotate(-4 330 180)">
+          <g class="l1"><text class="sh" x="318" y="180" font-size="172" text-anchor="middle">마블</text><text class="o" x="318" y="168" font-size="172" text-anchor="middle">마블</text><text class="m" x="318" y="168" font-size="172" text-anchor="middle">마블</text><text x="318" y="168" font-size="172" text-anchor="middle" fill="url(#lgA)">마블</text></g>
+          <g class="l2"><text class="sh" x="342" y="330" font-size="132" text-anchor="middle">디펜스</text><text class="o" x="342" y="318" font-size="132" text-anchor="middle">디펜스</text><text class="m" x="342" y="318" font-size="132" text-anchor="middle">디펜스</text><text x="342" y="318" font-size="132" text-anchor="middle" fill="url(#lgB)">디펜스</text></g>
+          <g clip-path="url(#lgClip)"><rect class="glint" x="-260" y="0" width="200" height="360" fill="url(#lgG)"/></g>
+        </g>
+      </svg>
+      <span class="bdie a"></span><span class="bdie b"></span>
+    </div>
+    <div class="bfoot">
+      <div class="bstat">불러오는 중…</div>
+      <div class="bbar"><i></i></div>
+      <div class="brow"><span class="bver">시안 v5.3 · 마블 디펜스</span><span class="bpct">0%</span></div>
+    </div>
+  </div>
+</div>
+<script src="../js/data.js?v=202611091555"></script>
+<script src="../js/meta.js?v=202611091555"></script>
+<script src="../js/geom.js?v=202611091555"></script>
+<script src="outgame.js?v=202611091555"></script>
+</body>
+</html>

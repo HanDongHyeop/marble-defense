@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#16122b">
+<title>마블 디펜스</title>
+<link rel="stylesheet" href="css/font.css?v=202611091555">
+<link rel="stylesheet" href="css/style.css?v=202611091555">
+</head>
+<body>
+<div id="wrap">
+  <div id="stage">
+    <canvas id="world"></canvas>
+
+    <!-- 위 HUD -->
+    <div id="topbar">
+      <div class="pill" id="roundPill"><span class="die mini"><i></i><i></i><i></i></span><b id="roundTxt">0 / 20</b></div>
+      <div class="pill" id="gauge"><img id="gaugeIco" alt=""><div class="bar"><i id="gaugeFill"></i></div><b id="gaugeTxt">0 / 50</b></div>
+      <button class="pill sq" id="pauseBtn" aria-label="일시정지"><span class="pz"></span><span class="pz"></span></button>
+    </div>
+    <div id="subbar">
+      <div id="chips"></div>
+      <div class="pill small" id="timerPill"><span class="clock"></span><b id="timerTxt">0:21</b></div>
+    </div>
+    <div id="bossBar" hidden><b id="bossName">보스</b><span id="bossInfo"></span><div class="bar"><i id="bossFill"></i></div></div>
+    <div id="missionBox" class="hudbox" hidden><div class="hd">미션 <span id="missionTime"></span></div><div id="missionName"></div><div class="bar"><i id="missionFill"></i></div><div id="missionProg"></div></div>
+    <div id="comboBox" class="hudbox" hidden><div class="hd">연속 출동</div><div id="comboN">×0</div><div id="comboPct">+0%</div><div id="stackTxt" hidden></div></div>
+
+    <button id="cmdBtn" class="roundbtn" aria-label="지휘관"><img id="cmdImg" alt=""><div class="cd" id="cmdCd"></div><span class="tag" id="cmdTag">지휘관</span></button>
+    <button id="p2Btn" hidden><span class="p2tag">2P</span><span class="dice2"><span class="die" id="p2A"></span><span class="die" id="p2B"></span></span><b id="p2Cost">20</b><i id="p2Gold">금화 0</i></button>
+    <button id="truckBtn" class="roundbtn" aria-label="현금 수송차"><img src="assets/img/x_truck.png" alt="" style="width:86px;height:auto;border-radius:0"><div class="cd" id="truckCd"></div><span class="tag">수송차</span></button>
+
+    <!-- 단계업 카드(내 포탑에 멈춤 = 모두의 마블 '내 땅 건설'): 말이 기다린다 -->
+    <div id="offerCard" hidden>
+      <div class="oc-imgs"><img id="ocFrom" alt=""><span class="arr">▶</span><img id="ocTo" alt=""></div>
+      <div class="oc-mid"><div class="oc-k">내 포탑에 멈춤!</div><div class="oc-n" id="ocName">화염 3단계</div><label class="oc-auto"><input type="checkbox" id="ocAuto"> 자동 단계업</label></div>
+      <div class="oc-btns"><button id="offerBtn"><span class="up">▲ 단계업</span><span class="cc"><span class="coin"></span><b id="offerCost">0</b></span></button><button id="ocNo">넘기기</button></div>
+      <i id="offerBar"></i>
+    </div>
+
+
+    <!-- 아래 조작 패널 -->
+    <div id="panel">
+      <div id="goldRow"><span class="coin big"></span><b id="goldTxt">0</b></div>
+      <div id="mainRow">
+        <button id="gdBtn" class="slot"><img id="gdImg" alt=""><b id="gdN">×0</b><span class="lab">황금 주사위</span></button>
+        <button id="rollBtn"><div class="dice2"><span class="die" id="dieA"></span><span class="die" id="dieB"></span></div><div class="cost"><span class="coin"></span><b id="rollCost">10</b></div><span id="autoBtn" role="button" aria-label="자동 굴리기">자동</span></button>
+        <div id="pawnSlot" class="slot"><img id="pawnImg" alt=""><span class="lab" id="pawnName">빨간 말</span></div>
+      </div>
+      <div id="deckRow"></div>
+    </div>
+
+    <canvas id="top"></canvas>
+    <div id="infoBox" hidden></div>
+    <div id="toast" hidden></div>
+    <div id="modal" hidden></div>
+    <div id="errbox" hidden></div>
+    <div id="loading"><div class="ld">불러오는 중…</div></div>
+  </div>
+</div>
+<script src="js/manifest.js?v=202611091555"></script>
+<script src="js/data.js?v=202611091555"></script>
+<script src="js/geom.js?v=202611091555"></script>
+<script src="js/meta.js?v=202611091555"></script>
+<script src="js/behave.js?v=202611091555"></script>
+<script src="js/coop.js?v=202611091555"></script>
+<script src="js/sim.js?v=202611091555"></script>
+<script src="js/audio.js?v=202611091555"></script>
+<script src="js/haptic.js?v=202611091555"></script>
+<script src="js/net.js?v=202611091555"></script>
+<script src="js/render.js?v=202611091555"></script>
+<script src="js/render2.js?v=202611091555"></script>
+<script src="js/render3.js?v=202611091555"></script>
+<script src="js/render4.js?v=202611091555"></script>
+<script src="js/render5.js?v=202611091555"></script>
+<script src="js/render6.js?v=202611091555"></script>
+  <script src="js/render7.js?v=202611091555"></script>
+<script src="js/render9.js?v=202611091555"></script>
+<script src="js/render10.js?v=202611091555"></script>
+<script src="js/render8.js?v=202611091555"></script>
+<script src="js/ui.js?v=202611091555"></script>
+<script src="js/main.js?v=202611091555"></script>
+</body>
+</html>

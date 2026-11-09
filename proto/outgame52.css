@@ -1,0 +1,92 @@
+/* [v5.2 시안] 로비 단순화 · 시작 주사위 · 고른 탭만 커짐 (outgame.css 위에 덮어씀)
+   사용자 지적: 로비가 너무 복잡(덱은 덱 화면에서) · 시작하면 주사위 한 번(판 없음) · 전투 탭이 늘 초록으로 커져 있음
+   레이어(로비): 장 분위기 배경 0 → 큰 장 이름 글자 1 → 받침 · 주사위 2 → 좌우 아이콘 · 카드 · 단추 10 → 위 정보 · 아래 탭 20 → 창 30 → 알림 40 → 굴림 띠 50 */
+
+/* 아래 탭: 모두 같은 모양, 고른 탭만 초록으로 커짐 */
+.tab { transition: flex .18s, height .18s, margin .18s; }
+.tab.on { flex: 1.35; height: 122px; margin-top: -26px; background: linear-gradient(#5fd96a, #36a845); color: #fff; border: 4px solid #fff1d6; box-shadow: 0 0 0 4px var(--plum), inset 0 -8px 0 #237a30, inset 0 4px 0 #a6f0ac; text-shadow: 0 2px 0 #1d5a26; font-size: 23px; }
+.tab.on .ico { width: 76px; height: 76px; filter: drop-shadow(0 3px 0 #1d5a2688); transform: translateY(-2px); }
+
+/* 장 분위기 배경(판 없음) */
+.chbg { position: absolute; inset: 0; transition: opacity .35s; overflow: hidden; }
+.chbg i { position: absolute; border-radius: 50%; opacity: .35; filter: blur(1px); animation: floaty 6s ease-in-out infinite; }
+@keyframes floaty { 50% { transform: translateY(-26px); opacity: .6; } }
+.hbig { position: absolute; left: 0; right: 0; top: 150px; text-align: center; font-size: 170px; line-height: 1; color: #fff; opacity: .1; letter-spacing: 8px; z-index: 1; pointer-events: none; white-space: nowrap; }
+
+/* 좌우 아이콘: 테두리 없이 그림 + 글자(가운데가 돋보이게) */
+.sbtn.flat { background: none; border: 0; box-shadow: none; height: 100px; width: 100px; font-size: 17px; text-shadow: 0 2px 0 var(--plum), 0 0 6px #000a; }
+.sbtn.flat .ico { width: 70px; height: 64px; top: 2px; filter: drop-shadow(0 4px 0 #0008); }
+.sbtn.flat.glow { animation: none; }
+.sbtn.flat.glow .ico { animation: hop 1.2s ease-in-out infinite; }
+@keyframes hop { 50% { transform: translateX(-50%) translateY(-6px) rotate(-5deg); } }
+.sbtn.flat .dot { top: 0; right: 8px; }
+
+/* 가운데 주사위 무대 */
+.dstage { position: absolute; left: 150px; right: 150px; top: 310px; height: 320px; z-index: 2; }
+.pedestal { position: absolute; left: 50%; bottom: 40px; width: 360px; height: 100px; margin-left: -180px; border-radius: 50%; background: radial-gradient(ellipse at 50% 40%, #ffffff30 0, #ffd23a30 40%, transparent 70%); }
+.pedestal::before { content: ''; position: absolute; left: 34px; right: 34px; top: 30px; bottom: 14px; border-radius: 50%; background: linear-gradient(#4a3f86, #2b2552); border: 4px solid var(--edge); box-shadow: 0 0 0 4px var(--plum), 0 10px 0 #0006, inset 0 -6px 0 #0005; }
+.bigdice { position: absolute; left: 50%; bottom: 76px; width: 380px; height: 210px; margin-left: -190px; display: flex; align-items: flex-end; justify-content: center; gap: 12px; }
+.bigdice span { display: block; }
+.bigdice svg { width: 150px; height: 160px; overflow: visible; filter: drop-shadow(0 10px 0 #0006); }
+.bigdice span:first-child svg { transform: rotate(-6deg); }
+.bigdice span:last-child { margin-bottom: 12px; }
+.bigdice span:last-child svg { transform: rotate(7deg); }
+.bigdice.rolling span { animation: bigtumble .85s cubic-bezier(.3,.6,.4,1) both; }
+.bigdice.rolling span:last-child { animation-duration: .8s; animation-delay: .04s; }
+@keyframes bigtumble { 0% { transform: translateY(0) rotate(0); } 30% { transform: translateY(-160px) rotate(220deg) scale(1.05); } 62% { transform: translateY(0) rotate(400deg); } 78% { transform: translateY(-26px) rotate(420deg); } 100% { transform: translateY(0) rotate(360deg); } }
+.bigdice.landed span { animation: land .3s ease-out; }
+@keyframes land { 0% { transform: scale(1.12, .88); } 100% { transform: none; } }
+.lastroll { position: absolute; left: 0; right: 0; bottom: 4px; text-align: center; font-size: 17px; color: var(--sub); text-shadow: 0 2px 0 var(--plum); }
+.lastroll b { color: var(--gold); font-weight: 400; }
+.luck { position: absolute; left: 140px; right: 140px; top: 648px; height: 58px; z-index: 10; display: flex; align-items: center; gap: 10px; padding: 0 18px; border-radius: 29px; background: rgba(31,26,58,.92); border: 3px solid #6e68a8; box-shadow: 0 0 0 3px var(--plum); font-size: 18px; white-space: nowrap; }
+.luck .k { color: var(--sub); }
+.luck .bar { flex: 1; height: 14px; }
+.luck b { color: var(--gold); font-weight: 400; font-size: 23px; }
+.luck .up { position: absolute; left: 50%; bottom: -26px; transform: translateX(-50%); font-size: 15px; color: #8fffa0; text-shadow: 0 2px 0 var(--plum); }
+.stagerow { position: absolute; left: 20px; right: 20px; top: 750px; height: 116px; display: flex; align-items: center; gap: 10px; z-index: 10; }
+.stagerow .arrow { width: 78px; height: 100px; flex: none; border-radius: 16px; background: var(--navy3); border: 3px solid var(--edge2); box-shadow: 0 0 0 3px var(--plum), inset 0 -6px 0 #0004; font-size: 30px; text-shadow: 0 2px 0 var(--plum); }
+.stagerow .arrow.dim { opacity: .4; }
+.stagecard { flex: 1; height: 112px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 0 12px; }
+.stagecard .n { font-size: 32px; text-shadow: 0 3px 0 var(--plum); white-space: nowrap; }
+.stagecard .st { font-size: 20px; color: var(--gold); white-space: nowrap; max-width: 420px; overflow: hidden; text-overflow: ellipsis; }
+.stagecard .st i { font-style: normal; color: #5a5480; }
+.stagecard .rule { font-size: 16px; color: #ffd8a8; }
+.stagecard.locked .n { color: #c8c0e0; }
+.stagecard.locked .rule { color: #ffb0b0; }
+.dchip { display: inline-block; vertical-align: 6px; font-size: 17px; padding: 2px 10px; border-radius: 9px; background: #3fbf4f; text-shadow: 0 1px 0 #1d5a26; }
+.dchip.d1 { background: #ff8a2a; text-shadow: 0 1px 0 #8a3a00; }
+.dchip.d2 { background: #e0303a; text-shadow: 0 1px 0 #6a0a10; }
+.startrow { top: 900px; height: 170px; }
+.startrow .rbtn { height: 132px; font-size: 20px; }
+.startrow .startbtn { height: 160px; font-size: 62px; }
+.diffrow2 { display: flex; gap: 10px; }
+.diffrow2 .diff { height: 84px; font-size: 25px; }
+
+/* 시작 주사위 결과 띠 */
+.rollban { position: absolute; left: 30px; right: 30px; top: 640px; padding: 20px 24px 22px; border-radius: 24px; text-align: center; background: rgba(43,20,38,.95); border: 4px solid var(--edge); box-shadow: 0 0 0 4px var(--plum), 0 16px 0 #0006; animation: popin3 .3s cubic-bezier(.2,.9,.3,1.3); }
+@keyframes popin3 { from { transform: scale(.6); } }
+.rollban .t { font-size: 56px; line-height: 1.1; text-shadow: 0 4px 0 var(--plum); }
+.rollban .s { font-size: 21px; color: var(--sub); margin-top: 6px; line-height: 1.4; }
+.rollban.dbl { background: linear-gradient(#5a3a10, #2e1e08); border-color: var(--gold); box-shadow: 0 0 0 4px var(--plum), 0 0 60px 10px #ffd23a88, 0 16px 0 #0006; }
+.rollban.dbl .t { color: #ffe27a; }
+.rollban.dbl .s { color: #fff4c8; }
+.rollban.jack { background: linear-gradient(#7a2a8a, #3a1050); border-color: #ffe27a; box-shadow: 0 0 0 4px var(--plum), 0 0 90px 20px #ff9ae0aa, 0 16px 0 #0006; }
+.rollban.jack .t { font-size: 64px; animation: jackglow .5s infinite alternate; }
+@keyframes jackglow { to { color: #fff; text-shadow: 0 4px 0 var(--plum), 0 0 24px #ffe27a; } }
+
+/* 혜택표 · 판 고르기 */
+.dbltab { display: flex; flex-direction: column; gap: 8px; }
+.drow { display: flex; align-items: center; gap: 14px; padding: 8px 14px; border-radius: 14px; background: var(--navy2); border: 3px solid #4e4880; box-shadow: 0 0 0 2px var(--plum); }
+.drow .dd { display: flex; gap: 2px; flex: none; }
+.drow .dd svg { width: 46px; height: 50px; }
+.drow .tx { flex: 1; font-size: 17px; color: var(--sub); line-height: 1.3; }
+.drow .tx b { display: block; font-size: 22px; color: var(--ink); font-weight: 400; }
+.drow .pr { font-size: 22px; color: var(--gold); min-width: 74px; text-align: right; }
+.drow.jack { border-color: var(--gold); background: linear-gradient(90deg, #4a3a12, #2b2552); }
+.drow.none { opacity: .75; }
+.chrow .cth { width: 120px; height: 76px; flex: none; border-radius: 12px; border: 3px solid var(--edge2); background-repeat: no-repeat; }
+.chrow .nm { width: 170px; }
+.chrow .crule { flex: 1; font-size: 15px; color: var(--sub); line-height: 1.3; }
+
+/* [v5.2 검수] 더블 확률 막대 터치 영역 넓히기 */
+.luck::after { content: ""; position: absolute; top: -12px; bottom: -12px; left: 0; right: 0; }
