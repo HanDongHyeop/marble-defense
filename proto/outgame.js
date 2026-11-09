@@ -1039,7 +1039,7 @@
     // [v5.4] 폰처럼 세로가 긴 화면은 무대 높이를 늘려 위아래 검은 띠를 없앤다(최대 1700) — 화면 요소는 위 · 아래에 붙어 있고, 로비 가운데 묶음은 늘어난 만큼의 절반 내려감
     const W = innerWidth, H = innerHeight; let k = Math.min(W / 720, H / 1280), sh = 1280;
     if (W / H < 720 / 1280) { sh = Math.min(1700, Math.round(H / (W / 720))); k = Math.min(W / 720, H / sh); }
-    const st = stage(); st.style.setProperty('--sh', sh + 'px'); st.style.setProperty('--ex', (sh - 1280) + 'px');
+    const st = stage(); st.style.setProperty('--sh', sh + 'px'); st.style.setProperty('--ex', (sh - 1280) + 'px'); st.style.setProperty('--exn', ((sh - 1280) / 420).toFixed(3));
     st.style.transform = `scale(${k})`; document.querySelectorAll('[data-fit]').forEach(e => { e.style.transform = `translate(-50%, -50%) scale(${k})`; }); }
   addEventListener('resize', fit);
   // 판 그림 미리 불러오기(장 바꿀 때 깜박임 없게)

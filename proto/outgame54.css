@@ -17,9 +17,11 @@
 /* ======================================================= 0. 폰 세로 화면 채우기(검은 띠 없음): 무대 높이가 화면 비율을 따라 늘고(--ex), 로비 가운데 묶음은 그 절반만큼 내려감 */
 #stage { height: var(--sh, 1280px); }
 html, body { background: #120f22; }
-#scr[data-s="home"] .hbig, #scr[data-s="home"] .dstage, #scr[data-s="home"] .luck, #scr[data-s="home"] .stagerow, #scr[data-s="home"] .startrow { translate: 0 calc(var(--ex, 0px) * .5); }
+#scr[data-s="home"] .hbig { translate: 0 calc(var(--ex, 0px) * .35); }
+#scr[data-s="home"] .dstage, #scr[data-s="home"] .luck, #scr[data-s="home"] .stagerow, #scr[data-s="home"] .startrow { translate: 0 calc(var(--ex, 0px) * .78); }
+#scr[data-s="home"] .dstage { scale: calc(1 + var(--exn, 0) * .18); transform-origin: 50% 100%; }
 #scr[data-s="home"] .sidecol { translate: 0 calc(var(--ex, 0px) * .12); }
-#fx .rollban { translate: 0 calc(var(--ex, 0px) * .5); }
+#fx .rollban { translate: 0 calc(var(--ex, 0px) * .78); }
 .resbox { translate: 0 calc(var(--ex, 0px) * .35); }
 
 /* ======================================================= 1. 공통 부품 */
@@ -89,7 +91,7 @@ html, body { background: #120f22; }
 #scr[data-s="deck"] { --pc: #222a5e; --pc2: #1a2150; --acc: #8ab4ff; }
 #scr[data-s="deck"] .bgnavy { background: radial-gradient(ellipse 70% 30% at 50% 4%, rgba(120,160,255,.32), transparent 70%), radial-gradient(ellipse 60% 25% at 50% 30%, rgba(255,210,120,.10), transparent 70%), linear-gradient(#141c44, #0c1130 60%, #0a0d24); }
 #scr[data-s="grow"] { --pc: #22604a; --pc2: #184634; --acc: #8fe08a; }
-#scr[data-s="grow"] .bgnavy { background: radial-gradient(ellipse 80% 30% at 50% 0%, rgba(140,255,160,.22), transparent 70%), radial-gradient(circle at 10% 70%, rgba(80,200,120,.12), transparent 40%), radial-gradient(circle at 90% 40%, rgba(200,255,120,.10), transparent 35%), linear-gradient(#1d5c44, #12402f 60%, #0c2a1f); }
+#scr[data-s="grow"] .bgnavy { background: radial-gradient(ellipse 80% 30% at 50% 0%, rgba(140,255,160,.22), transparent 70%), radial-gradient(circle at 10% 70%, rgba(80,200,120,.12), transparent 40%), radial-gradient(circle at 90% 40%, rgba(200,255,120,.10), transparent 35%), linear-gradient(#237556, #17553c 60%, #0f3a28); }
 #scr[data-s="collect"] { --pc: #5a3a1e; --pc2: #3e2612; --acc: #ffc76a; }
 #scr[data-s="collect"] .bgnavy { background: radial-gradient(ellipse 70% 28% at 50% 0%, rgba(255,200,120,.3), transparent 70%), repeating-linear-gradient(0deg, rgba(0,0,0,.12) 0 3px, transparent 3px 46px), repeating-linear-gradient(90deg, rgba(255,220,160,.035) 0 2px, transparent 2px 160px), linear-gradient(#3e2814, #2a1a0c 70%, #1c1208); }
 #scr[data-s="shop"] { --pc: #5a1a3e; --pc2: #3f1030; --acc: #ffd23a; }
@@ -275,3 +277,10 @@ html, body { background: #120f22; }
 #scr .stagenode .lockico { border: 0; box-shadow: 0 3px 8px rgba(0,0,0,.5); }
 #scr .aboardwrap { border: 0 !important; box-shadow: 0 14px 30px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.2) !important; }
 .passcols .ch, .plv, .passhead .lvb, .vip .em, .pcardbig .face, .goal .tag { border: 0 !important; box-shadow: 0 3px 8px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.18) !important; }
+
+/* [독립 검토 반영] 큰 장 이름 = 흐린 글씨가 아니라 장 색 그라데이션 제목 · 상점 현금 = 금 단추 · 성장 표식은 그림을 안 덮게 */
+.hbig { font-size: 150px; opacity: .3; background: linear-gradient(#ffffff, color-mix(in srgb, #ffffff 40%, transparent)); -webkit-background-clip: text; background-clip: text; color: transparent; filter: drop-shadow(0 6px 0 rgba(0,0,0,.35)); letter-spacing: 14px; }
+.sitem .pr { background: linear-gradient(#fff0a0, #ffd23a 55%, #f0b020); box-shadow: 0 4px 0 #b07a10, inset 0 2px 0 rgba(255,255,255,.6); color: #5a2e00; text-shadow: 0 1px 0 rgba(255,255,255,.5); }
+.famtower .see { display: none; }
+.famtower::after { content: '›'; position: absolute; right: 8px; top: 50%; translate: 0 -50%; font-size: 30px; color: rgba(255,255,255,.75); text-shadow: 0 2px 0 rgba(0,0,0,.5); }
+.skin .rar { font-size: 15px; background: rgba(0,0,0,.55); color: #fff; }
