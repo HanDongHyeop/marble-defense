@@ -6,11 +6,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="theme-color" content="#16122b">
 <title>마블 디펜스</title>
-<link rel="stylesheet" href="css/font.css?v=202611101833">
-<link rel="stylesheet" href="css/style.css?v=202611101833">
-<link rel="stylesheet" href="css/v54.css?v=202611101833">
-<link rel="stylesheet" href="css/v56.css?v=202611101833">
-<link rel="stylesheet" href="css/v57.css?v=202611101833">
+<link rel="stylesheet" href="css/font.css?v=202611102103">
+<link rel="stylesheet" href="css/style.css?v=202611102103">
+<link rel="stylesheet" href="css/v54.css?v=202611102103">
+<link rel="stylesheet" href="css/v56.css?v=202611102103">
+<link rel="stylesheet" href="css/v57.css?v=202611102103">
+<link rel="stylesheet" href="css/v58.css?v=202611102103">
 </head>
 <body>
 <div id="wrap">
@@ -27,7 +28,8 @@
       <div id="chips"></div>
       <div id="timeGrp"><button class="pill small" id="skipBtn" disabled aria-label="기다림 건너뛰기"><span class="ff"><i></i><i></i></span><b>스킵</b></button><div class="pill small" id="timerPill"><span class="clock"></span><b id="timerTxt">0:21</b></div></div>
     </div>
-    <div id="bossBar" hidden><b id="bossName">보스</b><span id="bossInfo"></span><div class="bar"><i id="bossFill"></i></div></div>
+    <div id="bossBar" hidden><b id="bossName">보스</b><span id="bossInfo"></span><div class="bar"><i id="bossFill"></i></div><div id="lapTrack" aria-label="보스 진행"><i class="ln"></i><i class="hf">◆</i><i class="cr"></i><i class="me"></i></div></div>
+    <div id="warnFx" hidden><div class="vig"></div><div class="band"><div class="stripes"></div><b>WARNING</b><span id="warnName">보스전</span><small id="warnSub"></small><div class="stripes"></div></div></div>
     <div id="missionBox" class="hudbox" hidden><div class="hd">미션 <span id="missionTime"></span></div><div id="missionName"></div><div class="bar"><i id="missionFill"></i></div><div id="missionProg"></div></div>
     <div id="comboBox" class="hudbox" hidden><div class="hd">연속 출동</div><div id="comboN">×0</div><div id="comboPct">+0%</div><div id="stackTxt" hidden></div></div>
 
@@ -63,30 +65,31 @@
     <div id="loading"><div class="ld">불러오는 중…</div></div>
   </div>
 </div>
-<script src="js/manifest.js?v=202611101833"></script>
-<script src="js/data.js?v=202611101833"></script>
-<script src="js/geom.js?v=202611101833"></script>
-<script src="js/meta.js?v=202611101833"></script>
-<script src="js/behave.js?v=202611101833"></script>
-<script src="js/coop.js?v=202611101833"></script>
-<script src="js/sim.js?v=202611101833"></script>
-<script src="js/audio.js?v=202611101833"></script>
-<script src="js/haptic.js?v=202611101833"></script>
-<script src="js/net.js?v=202611101833"></script>
-<script src="js/render.js?v=202611101833"></script>
-<script src="js/render2.js?v=202611101833"></script>
-<script src="js/render3.js?v=202611101833"></script>
-<script src="js/render4.js?v=202611101833"></script>
-<script src="js/render5.js?v=202611101833"></script>
-<script src="js/render6.js?v=202611101833"></script>
-  <script src="js/render7.js?v=202611101833"></script>
-<script src="js/render9.js?v=202611101833"></script>
-<script src="js/render10.js?v=202611101833"></script>
-<script src="js/render8.js?v=202611101833"></script>
-<script src="js/render11.js?v=202611101833"></script>
-<script src="js/render12.js?v=202611101833"></script>
-<script src="js/render13.js?v=202611101833"></script>
-<script src="js/ui.js?v=202611101833"></script>
-<script src="js/main.js?v=202611101833"></script>
+<script src="js/manifest.js?v=202611102103"></script>
+<script src="js/data.js?v=202611102103"></script>
+<script src="js/geom.js?v=202611102103"></script>
+<script src="js/meta.js?v=202611102103"></script>
+<script src="js/behave.js?v=202611102103"></script>
+<script src="js/coop.js?v=202611102103"></script>
+<script src="js/sim.js?v=202611102103"></script>
+<script src="js/audio.js?v=202611102103"></script>
+<script src="js/haptic.js?v=202611102103"></script>
+<script src="js/net.js?v=202611102103"></script>
+<script src="js/render.js?v=202611102103"></script>
+<script src="js/render2.js?v=202611102103"></script>
+<script src="js/render3.js?v=202611102103"></script>
+<script src="js/render4.js?v=202611102103"></script>
+<script src="js/render5.js?v=202611102103"></script>
+<script src="js/render6.js?v=202611102103"></script>
+  <script src="js/render7.js?v=202611102103"></script>
+<script src="js/render9.js?v=202611102103"></script>
+<script src="js/render10.js?v=202611102103"></script>
+<script src="js/render8.js?v=202611102103"></script>
+<script src="js/render11.js?v=202611102103"></script>
+<script src="js/render12.js?v=202611102103"></script>
+<script src="js/render13.js?v=202611102103"></script>
+<script src="js/render14.js?v=202611102103"></script>
+<script src="js/ui.js?v=202611102103"></script>
+<script src="js/main.js?v=202611102103"></script>
 </body>
 </html>

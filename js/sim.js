@@ -125,6 +125,10 @@
       m.kind = 'boss';
       this.boss = m; this.bossT = 0;
       if (r >= 20 && this.mode === 'conquest') this.finalT = 0;
+      // [v5.8] 보스전 판 규칙 — 보스가 나온 입구가 수정으로 바뀜. 보스는 한 바퀴만 돌고, 수정에 닿으면 보스 · 수정이 함께 사라지며 몬스터 수용치 −10(최소 20).
+      //   절반(12칸) 전에 잡으면 '보스 목표' 성공 = 이번 카드 묶음 등급 UP. 마지막 보스(정복 20라운드)는 예전처럼 제한 시간 규칙(수정 없음)
+      m.lapMode = !(r >= 20 && this.mode === 'conquest');
+      if (m.lapMode) { this.crystal = { round: r, born: this.t }; this.emit('crystal', { boss: kind }); } else this.crystal = null;
       this.emit('boss', { boss: kind, name: BOSSES[kind].name });
     }
     posOf(m) { const p = G.lanePoint(m.f, m.w * 0.8); m.px = m.x; m.x = p[0]; m.y = p[1]; m.g = p[2]; }
@@ -175,7 +179,25 @@
       this.emit('bossDown', { boss: k });
       if (this.round >= 20 && this.mode === 'conquest' && k !== 'goblin' && k !== 'piggy') { this.win(); return; }
       const picks = k === 'goblin' ? 2 : 1;
-      if (m.cardOnKill) this.startCardPick(picks);
+      this.crystal = null;
+      const goal = m.lapMode && !m.halfPast;   // [v5.8] 보스 목표: 절반 전에 처치
+      if (m.lapMode) this.emit(goal ? 'bossGoal' : 'bossGoalMiss', { boss: k });
+      if (m.cardOnKill) this.startCardPick(picks, goal);
+    }
+    // [v5.8] 보스가 한 바퀴를 돌아 수정에 닿음 → 보스 · 수정이 사라짐. 교란 보스면 수정이 깨지며 몬스터 수용치 −10(최소 20) · 카드 없음
+    //   좋은 보스(저금통 · 황금 고블린)는 수정을 깨지 않고 빠져나감(저금통은 그때 금화 보너스)
+    bossEscape(m) {
+      const k = m.boss; m.alive = false; this.boss = null; this.crystal = null;
+      if (this.roundT > ECON.roundTime - 2) this.roundT = ECON.roundTime - 2;
+      if (BOSSES[k].kind === 'disrupt') {
+        const from = this.limit, to = Math.max(ECON.crystal.min, from - ECON.crystal.dmg);
+        this.limit = to; this.crystalBroken = (this.crystalBroken || 0) + 1;
+        this.emit('crystalBreak', { boss: k, from, to, x: m.x, y: m.y });
+      } else {
+        if (k === 'piggy') { const g = Math.min(Math.floor(this.gold * 0.5), this.round * 40); this.gold += g; this.emit('piggy', { gold: g }); }
+        this.emit('escape', { x: m.x, y: m.y, boss: k });
+      }
+      this.emit('bossLeave', { boss: k });
     }
     win() {
       if (this.over) return;
@@ -725,7 +747,7 @@
     }
 
     // ------------------------------------------------------------ 작전 카드
-    startCardPick(picks) {
+    startCardPick(picks, boost) {
       if (this.cardPicks >= 5) return;
       const r = this.round;
       // [v4.2] 판 시작(라운드 0) = 시작 카드 풀(st 1 · 2), 중간 = 시작 전용(st 2) 빼고 전부
@@ -736,7 +758,9 @@
       w.e += Math.max(0, pity.e - PE.from + 1) * PE.step; w.l += Math.max(0, pity.l - PL.from + 1) * PL.step;
       const pool = Object.keys(CARDS).filter(k => !this.cards.includes(k) && (start ? CARDS[k].st : CARDS[k].st !== 2));
       const opts = [], rank = { c: 0, r: 1, e: 2, l: 3 };
-      const sureL = pity.l + 1 >= PL.sure, sureE = pity.e + 1 >= PE.sure;
+      // [v5.8] 보스 목표 성공(절반 전에 처치) = 이번 묶음 등급 UP: 일반 확률 절반 · 영웅 ×1.6 · 전설 ×2 + 첫 장은 영웅 이상
+      if (boost) { w.c *= 0.5; w.e *= 1.6; w.l *= 2; }
+      const sureL = pity.l + 1 >= PL.sure, sureE = pity.e + 1 >= PE.sure || !!boost;
       for (let n = 0; n < 3 && pool.length; n++) {
         let g;
         if (n === 0 && sureL) g = 'l';
@@ -752,7 +776,7 @@
       const best = Math.max(...opts.map(k => rank[CARDS[k].g]));
       pity.e = best >= 2 ? 0 : pity.e + 1; pity.l = best >= 3 ? 0 : pity.l + 1;
       this.emit('pity', { e: pity.e, l: pity.l });
-      this.cardPick = { opts, left: picks || 1, rerolls: 0 };
+      this.cardPick = { opts, left: picks || 1, rerolls: 0, boost: !!boost };
       this.paused = true;
       this.emit('cardPick', {});
     }
@@ -762,7 +786,7 @@
       // [v4.1] 다시 뽑기로 굴리기 값까지 써 버리면 판이 멈춘다(시작 금화 100 − 두 번째 뽑기 100 = 0) → 굴리기 값은 남겨 둔다
       if (cost > 0 && this.gold - cost < this.rollCost) { this.emit('nogold'); return false; }
       this.gold -= cost; if (cost > 0) this.emit('spend', { amt: cost, why: 'reroll' }); const n = cp.rerolls + 1, left = cp.left;
-      this.startCardPick(left); this.cardPick.rerolls = n;
+      this.startCardPick(left, cp.boost); this.cardPick.rerolls = n;
       return true;
     }
     pickCard(k) {
@@ -772,7 +796,7 @@
       this.emit('card', { id, name: CARDS[id].name });
       this.applyCard(id);
       cp.left--;
-      if (cp.left > 0) { this.startCardPick(cp.left); return true; }
+      if (cp.left > 0) { this.startCardPick(cp.left, cp.boost); return true; }
       this.cardPick = null; this.paused = false;
       if (this.round === 0) this.startRound();
       return true;
@@ -785,7 +809,9 @@
       const r = Math.max(1, this.round);
       const tierUp = ts => { for (const t of ts) { const from = t.tower.tier; this.setTier(t.i, from + 1, 'tierup'); fx.steps.push({ i: t.i, kind: 'tier', from, to: from + 1, type: t.tower.type }); } };
       if (id === 'bighand') { const g = Math.max(20, r * 3); this.gold += g; this.emit('gold', { amt: g, why: '큰손' }); }
-      if (id === 'wall') this.limit += 8;
+      if (id === 'wall') this.limit += 5;   // [v5.8] 8 → 5(영웅 '수정 방패'가 +8)
+      if (id === 'crystal8') this.limit += 8;
+      if (id === 'crystal15') this.limit += 15;
       if (id === 'deal') this.limit -= 10;
       if (id === 'focus') { this.focusType = this.pickOne(this.deck); fx.types = [this.focusType]; }
       if (id === 'awaken') { const pool = this.deck.filter(d => d !== 'prism'), a = this.pickOne(pool), b = this.pickOne(pool.filter(d => d !== a)) || a; this.awakenType = a; this.awakenTypes = [a, b]; fx.types = [a, b]; }
@@ -939,8 +965,8 @@
       this.bossT += dt;
       if (this.finalT != null) { this.finalT += dt; if (this.finalT > ECON.finalLimit) { this.lose('time'); return; } }
       const k = b.boss, enr = this.bossT > ECON.enrage;
-      if (k === 'piggy' && !b.paid && this.bossT >= 60) { b.paid = true; const g = Math.min(Math.floor(this.gold * 0.5), this.round * 40); this.gold += g; this.emit('piggy', { gold: g }); }
-      if (k === 'goblin' && b.dist >= 24) { b.alive = false; this.boss = null; this.emit('escape', { x: b.x, y: b.y }); return; }
+      if (k === 'piggy' && !b.lapMode && !b.paid && this.bossT >= 60) { b.paid = true; const g = Math.min(Math.floor(this.gold * 0.5), this.round * 40); this.gold += g; this.emit('piggy', { gold: g }); }
+      if (k === 'goblin' && !b.lapMode && b.dist >= 24) { b.alive = false; this.boss = null; this.emit('escape', { x: b.x, y: b.y }); return; }
       if (BOSSES[k].kind !== 'disrupt') return;
       b.abT -= dt * (enr ? 2 : 1) * (D.DIFF[this.diff].fastBoss ? 1.5 : 1);
       // [v5.6] 예고: 스킬 1.2초 전에 보스가 기를 모은다(화면이 보스 쪽을 먼저 보여 주게 — 지침 3-6 예고 → 이동 → 변신 → 강조)
@@ -993,6 +1019,8 @@
         const v = this.monSpeed(m) * dt;
         const before = m.f;
         m.f += v; m.dist += v;
+        if (m.boss && m.lapMode && m.f >= 24) { m.f = 24; this.bossEscape(m); continue; }
+        if (m.boss && m.lapMode && !m.halfPast && m.f >= ECON.crystal.half) { m.halfPast = true; this.emit('bossHalf', { boss: m.boss }); }
         if (m.f >= 24) {
           m.f -= 24; m.laps++;
           if (m.kind === 'truck') { m.alive = false; this.emit('truckGone', {}); continue; }

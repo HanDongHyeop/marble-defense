@@ -554,8 +554,8 @@
       const stunned = game.t < m.stunUntil;
       const hopSpd = m.boss ? 5 : m.kind === 'fast' ? 13 : 9;
       const ph = stunned ? 0 : Math.abs(Math.sin(now * hopSpd + m.ph));
-      const hop = ph * (m.boss ? 5 : 8) * g, contact = 1 - ph;
-      const sx = 1 + 0.08 * contact, sy = 1 - 0.08 * contact;
+      const hop = ph * (m.boss ? 4.25 : 6.8) * g, contact = 1 - ph;   // [v5.8] 걷는 통통 모션 −15%(사용자: '아주 살짝 번잡스럽다') — 전 5 · 8 / 0.08
+      const sx = 1 + 0.068 * contact, sy = 1 - 0.068 * contact;
       // 그림자
       c.save(); c.globalAlpha = 0.28 * (1 - ph * 0.4); c.fillStyle = '#1a0e14';
       const sw = (m.boss ? 56 : m.kind === 'giant' ? 46 : 22) * g;

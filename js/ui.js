@@ -212,12 +212,15 @@
       const g = this.g; if (!g) return;
       const r = Math.max(1, g.round);
       $('roundTxt').textContent = g.mode === 'endless' ? `${r} 라운드` : `${r} / 20`;
-      const lim = g.limit, w = g.weight;
+      let lim = g.limit; const w = g.weight;
+      // [v5.8] 수정이 깨지면 조각이 게이지에 닿을 때까지 예전 수용치를 보여 주고, 닿는 순간 숫자가 바뀜(ui.crystalHit)
+      if (this._limHold && performance.now() < this._limHold.until) lim = this._limHold.from;
       $('gaugeTxt').textContent = `${w} / ${lim}`;
       $('gaugeFill').style.width = Math.min(100, w / lim * 100) + '%';
       $('gauge').classList.toggle('warn', w / lim > 0.75);
       // 타이머: 라운드 남은 시간 / 마지막 보스 제한
-      let tt = g.finalT != null ? Math.max(0, 90 - g.finalT) : g.boss && g.boss.alive && g.bossT < D.ECON.bossHold ? Math.max(0, D.ECON.bossHold - g.bossT) : Math.max(0, 21 - g.roundT);   // [v5.6] 보스전 = 보스 제한 시간
+      const bl = g.boss && g.boss.alive && g.boss.lapMode;
+      let tt = g.finalT != null ? Math.max(0, 90 - g.finalT) : bl ? Math.max(0, (24 - g.boss.f) / Math.max(0.05, D.ECON.monSpeed * g.boss.spd)) : g.boss && g.boss.alive && g.bossT < D.ECON.bossHold ? Math.max(0, D.ECON.bossHold - g.bossT) : Math.max(0, 21 - g.roundT);   // [v5.6] 보스전 = 보스 제한 시간 → [v5.8] 수정에 닿기까지(보통 속도 기준)
       if (g.round === 0) tt = 0;
       $('timerTxt').textContent = `${Math.floor(tt / 60)}:${String(Math.floor(tt % 60)).padStart(2, '0')}`;
       { const ok = !!g.canSkip() && !(this.app.net && this.app.net.role === 'guest'), sb = $('skipBtn'); if (sb.disabled === ok) { sb.disabled = !ok; sb.classList.toggle('on', ok); if (ok) { sb.classList.remove('pop'); void sb.offsetWidth; sb.classList.add('pop'); } } }
@@ -231,7 +234,13 @@
         $('bossName').textContent = D.BOSSES[b.boss].name;
         $('bossFill').style.width = Math.max(0, b.hp / b.maxHp * 100) + '%';
         const en = g.bossT > D.ECON.enrage && D.BOSSES[b.boss].kind === 'disrupt';
-        $('bossInfo').textContent = b.boss === 'piggy' ? (b.paid ? '보너스 지급 완료' : `보너스까지 ${Math.ceil(60 - g.bossT)}초`) : b.boss === 'goblin' ? '한 바퀴 안에 잡아라!' : en ? '광폭화!' : `광폭화까지 ${Math.ceil(D.ECON.enrage - g.bossT)}초`;
+        if (b.lapMode) {
+          // [v5.8] 보스 진행 줄: 입구(왼쪽) → ◆ 절반 목표 → 수정(오른쪽). 지금 보스 위치 = 점
+          const p = Math.max(0, Math.min(1, b.f / 24)), kind = D.BOSSES[b.boss].kind;
+          $('lapTrack').style.setProperty('--p', (p * 100).toFixed(1) + '%'); $('lapTrack').classList.toggle('miss', !!b.halfPast);
+          $('bossInfo').textContent = kind !== 'disrupt' ? (b.boss === 'piggy' ? '수정에 닿으면 금화 보너스' : '한 바퀴 안에 잡으면 카드 2장') : b.halfPast ? '수정에 닿으면 수용치 −10' : '◆ 전에 잡으면 카드 등급 UP';
+        } else $('bossInfo').textContent = en ? '광폭화!' : `광폭화까지 ${Math.ceil(D.ECON.enrage - g.bossT)}초`;
+        $('lapTrack').hidden = !b.lapMode;
       }
       // 미션
       const ms = g.mission;
@@ -324,7 +333,8 @@
       if (e.ev === 'pick' && e.kind === 'swap') this.toast('순간이동술사', '바꿀 칸을 누르세요', '빈 칸이면 그 칸으로 옮김', false, 1.6);
       if (e.ev === 'pick' && e.kind === 'space' && e.second) this.toast('순간이동술사', '우주여행 한 번 더!', '갈 칸을 누르세요', false, 1.6);
       if (e.ev === 'pick' && e.kind === 'gold') this.toast('황금 주사위', '갈 칸을 누르세요', '2~12칸 앞 · 다시 누르면 취소', false, 1.4);
-      if (e.ev === 'boss') this.toast('보스 등장', e.name, D.BOSSES[e.boss].desc, true, 2.2);
+      if (e.ev === 'boss') this.bossWarn(e);   // [v5.8] 보스전 = 화면 경고(전: 위 알림 창)
+      if (e.ev === 'crystalBreak') this.crystalHit(e);
       if (e.ev === 'commander') this.toast('지휘관', D.COMMANDERS[e.id].name, D.COMMANDERS[e.id].act, false, 1.4);
       if (e.ev === 'upgrade' && e.free) this.toast('훈장', D.TOWERS[e.type].name + ' 강화 +1', 'Lv ' + e.lv, false, 1.6);
       if (e.ev === 'rescueRoll') this.toast('구조 굴림', '금화가 모자라 무료로 굴려요', '포탑이 하나도 없을 때만', false, 1.6);
@@ -554,6 +564,37 @@
         <li>키보드: 스페이스 = 굴리기, U = 단계업, G = 황금 주사위, Esc = 멈춤.</li>
       </ol><div class="btns"><button class="btn" data-act="back">알겠어요</button></div></div>`);
       m.onclick = e => { if (e.target.closest('[data-act=back]')) { this.sfx().click(); back ? back() : this.close(); } };
+    }
+    // [v5.8] 보스전 경고 — 사용자: '보스전 시작 시 워닝 모션. 다른 때와 달리 보스전인 게 바로 느껴져야(화면 워닝 이펙트)'
+    //   빨간 가장자리가 세 번 맥박 + 가운데 줄무늬 띠 'WARNING' · 보스 이름 · 규칙 한 줄이 가로로 밀려 들어왔다 나감(2.2초)
+    bossWarn(e) {
+      const el = $('warnFx'), B = D.BOSSES[e.boss] || {};
+      $('warnName').textContent = '보스전 · ' + e.name;
+      $('warnSub').textContent = B.kind === 'disrupt' ? '한 바퀴 돌아 수정에 닿기 전에 잡아라 — ◆ 절반 전이면 카드 등급 UP' : (B.desc || '');
+      el.hidden = false; el.classList.remove('go'); void el.offsetWidth; el.classList.add('go');
+      clearTimeout(this._warnT); this._warnT = setTimeout(() => { el.hidden = true; el.classList.remove('go'); }, 2300);
+      try { const A = root.SFX; if (A && A.tone) [0, 0.42, 0.84].forEach(d => { A.tone({ f: 660, f2: 440, d: 0.36, v: 0.09, wave: 'square', delay: d }); }); } catch (er) { /* 소리 없음 */ }
+    }
+    // [v5.8] 수정 깨짐 → 조각이 입구에서 위 게이지로 날아가 닿는 순간 수용치 숫자가 바뀜(50 → 40) + 게이지 흔들림 · '−10'
+    crystalHit(e) {
+      const R = this.app.renderer, world = document.getElementById('world'), gauge = $('gauge'); if (!world || !gauge) return;
+      const wr = world.getBoundingClientRect(), k = wr.width / 720, [ex, ey] = root.GEOM.lanePoint(0, 0);
+      const sx = wr.left + ex * k, sy = wr.top + (ey - 50) * k, gr = $('gaugeTxt').getBoundingClientRect(), tx = gr.left + gr.width / 2, ty = gr.top + gr.height / 2;
+      const FLY = 0.75, DELAY = 0.45;
+      this._limHold = { from: e.from, until: performance.now() + (DELAY + FLY) * 1000 };
+      for (let n = 0; n < 5; n++) {
+        const s = document.createElement('i'); s.className = 'crShard' + (n ? ' sm' : ''); document.body.appendChild(s);
+        const mx = (sx + tx) / 2 + (n - 2) * 40, my = Math.min(sy, ty) + (sy - ty) * 0.35;
+        s.animate([{ transform: `translate(${sx}px,${sy}px) scale(.4) rotate(0deg)`, opacity: 0 }, { transform: `translate(${sx}px,${sy - 30}px) scale(1.2) rotate(40deg)`, opacity: 1, offset: 0.15 }, { transform: `translate(${mx}px,${my}px) scale(1) rotate(200deg)`, opacity: 1, offset: 0.55 }, { transform: `translate(${tx}px,${ty}px) scale(.7) rotate(360deg)`, opacity: 1 }], { duration: FLY * 1000, delay: DELAY * 1000 + n * 40, easing: 'cubic-bezier(.5,0,.6,1)', fill: 'both' }).onfinish = () => s.remove();
+      }
+      setTimeout(() => {
+        gauge.classList.remove('limhit'); void gauge.offsetWidth; gauge.classList.add('limhit');
+        const pop = document.createElement('div'); pop.className = 'limPop'; pop.innerHTML = `<s>${e.from}</s> → <b>${e.to}</b><em>−${e.from - e.to}</em>`; gauge.appendChild(pop);
+        setTimeout(() => { pop.remove(); gauge.classList.remove('limhit'); }, 1900);
+        try { root.SFX && root.SFX.error && root.SFX.error(); root.SFX && root.SFX.tone && root.SFX.tone({ f: 300, f2: 90, d: 0.4, v: 0.16, wave: 'sawtooth' }); } catch (er) { /* 소리 없음 */ }
+        if (root.HAPTIC && root.HAPTIC.buzz) try { root.HAPTIC.buzz(120); } catch (er) { /* 없음 */ }
+      }, (DELAY + FLY) * 1000);
+      void R;
     }
     cardModal() {
       const g = this.g, cp = g.cardPick;

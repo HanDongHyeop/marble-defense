@@ -1,0 +1,45 @@
+/* v5.8 보스전 판 규칙 — 경고 · 보스 진행 줄 · 수정 깨짐 → 수용치 게이지
+   사용자(2026-11-10): '보스전 시작 시 워닝 모션(화면 워닝 이펙트) · 수정이 깨지면 수정 쪽에서 데미지 이펙트가 위 게이지로 올라가 50이 40으로 줄고 이펙트 모션도'
+   상태: 경고 2.2초(가장자리 3번 맥박 + 줄무늬 띠가 밀려 들어왔다 나감) / 진행 줄 = 입구 → ◆ 절반 → 수정(놓치면 ◆ 회색) / 깨짐 = 조각이 날아가 게이지에 닿는 순간 흔들림 · 붉은 번쩍 · '50 → 40 −10' */
+
+/* ① 화면 경고 */
+#warnFx { position: absolute; inset: 0; z-index: 40; pointer-events: none; overflow: hidden; }
+#warnFx .vig { position: absolute; inset: 0; box-shadow: inset 0 0 0 0 #ff1e3c00; }
+#warnFx.go .vig { animation: wVig .7s ease-in-out 3; }
+@keyframes wVig { 0%, 100% { box-shadow: inset 0 0 40px 10px #ff1e3c22; background: #ff1e3c00; } 45% { box-shadow: inset 0 0 120px 40px #ff1e3ccc; background: #ff1e3c1c; } }
+#warnFx .band { position: absolute; left: -10%; right: -10%; top: 33%; padding: 10px 0 12px; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: linear-gradient(#2a0612ee, #4a0a1cee 50%, #2a0612ee); transform: translateX(110%) skewY(-4deg); }
+#warnFx.go .band { animation: wBand 2.2s cubic-bezier(.2,.9,.3,1) both; }
+@keyframes wBand { 0% { transform: translateX(110%) skewY(-4deg); } 16% { transform: translateX(0) skewY(-4deg); } 84% { transform: translateX(0) skewY(-4deg); opacity: 1; } 100% { transform: translateX(-110%) skewY(-4deg); opacity: .6; } }
+#warnFx .stripes { align-self: stretch; height: 12px; background: repeating-linear-gradient(-45deg, #ffcf2a 0 18px, #1a0a10 18px 36px); animation: wStripe .5s linear infinite; }
+@keyframes wStripe { to { background-position: 51px 0; } }
+#warnFx b { font: 400 54px/1 Jua, sans-serif; letter-spacing: 8px; color: #ff4a5a; text-shadow: 0 4px 0 #2b0410, 0 0 24px #ff1e3c; margin-top: 8px; animation: wBlink .35s steps(2) 6; }
+@keyframes wBlink { 50% { color: #ffe0e4; } }
+#warnFx #warnName { font: 400 26px Jua, sans-serif; color: #fff; text-shadow: 0 3px 0 #2b0410; }
+#warnFx small { font: 400 17px Jua, sans-serif; color: #ffd0d6; margin-bottom: 8px; padding: 0 24px; text-align: center; }
+
+/* ② 보스 진행 줄(보스 체력 바 아래): 입구 ● → ◆ 절반 → 수정 */
+#lapTrack { --p: 0%; position: relative; height: 18px; margin: 6px 10px 0; }
+#lapTrack .ln { position: absolute; left: 0; right: 14px; top: 7px; height: 5px; border-radius: 3px; background: linear-gradient(90deg, #ffd23a 0 50%, #d070ff 50% 100%); box-shadow: 0 0 0 2px var(--plum); opacity: .85; }
+#lapTrack .hf { position: absolute; left: calc(50% - 7px - 9px); top: -3px; font-style: normal; font-size: 20px; line-height: 1; color: #ffd23a; text-shadow: 0 2px 0 var(--plum), 0 0 8px #ffd23a; animation: hfBeat 1s ease-in-out infinite alternate; }
+@keyframes hfBeat { to { transform: scale(1.2); } }
+#lapTrack.miss .hf { color: #8a8098; text-shadow: 0 2px 0 var(--plum); animation: none; }
+#lapTrack.miss .ln { background: linear-gradient(90deg, #6a6078 0 50%, #ff5a8a 50% 100%); }
+#lapTrack .cr { position: absolute; right: 0; top: -5px; width: 18px; height: 26px; background: url(../assets/img/x_crystal.png) center / contain no-repeat; filter: drop-shadow(0 0 6px #d070ff); }
+#lapTrack .me { position: absolute; left: calc((100% - 14px) * var(--p) / 100% - 8px); left: calc(var(--p) * 0.96 - 8px); top: 1px; width: 16px; height: 16px; border-radius: 50%; background: #ff4a5a; box-shadow: 0 0 0 3px var(--plum), 0 0 10px #ff4a5a; transition: left .25s linear; }
+
+/* ③ 수정 조각 → 게이지 */
+.crShard { position: fixed; left: 0; top: 0; width: 22px; height: 22px; margin: -11px 0 0 -11px; z-index: 60; pointer-events: none;
+  background: linear-gradient(135deg, #ffffff 0 18%, #f0a8ff 30%, #b040e8 70%, #5a1a8a); clip-path: polygon(50% 0, 100% 40%, 70% 100%, 20% 90%, 0 35%); filter: drop-shadow(0 0 8px #e080ff); }
+.crShard.sm { width: 13px; height: 13px; margin: -6px 0 0 -6px; }
+#gauge.limhit { animation: limShake .5s cubic-bezier(.3,.7,.4,1); }
+#gauge.limhit::after { content: ''; position: absolute; inset: -4px; border-radius: 14px; background: #ff1e3c; opacity: 0; animation: limFlash .8s ease-out; pointer-events: none; }
+@keyframes limShake { 0% { transform: translateX(0) scale(1.08); } 20% { transform: translateX(-10px) scale(1.08); } 40% { transform: translateX(9px); } 60% { transform: translateX(-6px); } 80% { transform: translateX(3px); } 100% { transform: none; } }
+@keyframes limFlash { 0% { opacity: .6; } 100% { opacity: 0; } }
+.limPop { position: absolute; left: 50%; top: 100%; margin-top: 4px; z-index: 30; padding: 4px 12px; border-radius: 10px; background: #2a0612f0; box-shadow: 0 0 0 3px var(--plum), 0 0 16px #ff1e3c88; font: 400 24px Jua, sans-serif; color: #fff; white-space: nowrap;
+  animation: limPopIn 1.9s cubic-bezier(.2,.9,.3,1.2) both; }
+.limPop s { color: #b8a8c0; text-decoration-thickness: 3px; text-decoration-color: #ff4a5a; }
+.limPop b { color: #ff6a7a; font-weight: 400; font-size: 30px; }
+.limPop em { font-style: normal; margin-left: 8px; color: #ffd23a; font-size: 20px; }
+@keyframes limPopIn { 0% { opacity: 0; transform: translate(-50%, -14px) scale(.6); } 12% { opacity: 1; transform: translate(-50%, 0) scale(1.15); } 22% { transform: translate(-50%, 0) scale(1); } 85% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, 6px); } }
+@media (prefers-reduced-motion: reduce) { #warnFx.go .vig, #warnFx b, #lapTrack .hf, #gauge.limhit { animation-duration: .01s !important; animation-iteration-count: 1 !important; } }
