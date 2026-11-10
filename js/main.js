@@ -123,7 +123,7 @@
           if (this.acc > 0.5) this.acc = 0.5;
           ls.flush();
           if (ls.desync && !this._desyncShown) { this._desyncShown = true; this.ui.toast('온라인', '두 기기의 판이 어긋났어요', '연결을 끊고 다시 시작해 주세요', true, 4); }
-        } else if (!this.paused && !this.ui.modalOpen()) {
+        } else if (!this.paused && !this.ui.modalOpen() && !(this.renderer.cardBusy && this.renderer.cardBusy())) {   // [v5.7] 카드가 판을 바꾸는 연출 동안은 판을 멈춤(render13)
           this.acc = (this.acc || 0) + dt * speed;
           let n = 0;
           while (this.acc >= 1 / 60 && n < 12) { g.step(1 / 60); this.acc -= 1 / 60; n++; if (this.bot) this.botTick(1 / 60); }

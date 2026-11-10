@@ -58,7 +58,7 @@
       if (opt.coop) this.coopInit(opt.coop === 'human');
       this.startCardPick();
     }
-    emit(ev, o) { this.events.push(Object.assign({}, o || {}, { ev, t: this.t })); }
+    emit(ev, o) { this.events.push(Object.assign({}, o || {}, { ev, t: this.t }, this._cardFx && ev !== 'cardFx' ? { card: this._cardFx.id } : null)); }
     rand(n) { return Math.floor(this.r() * n); }
     pickOne(a) { return a[this.rand(a.length)]; }
     hpR(r) { return ECON.hp(Math.max(1, r || this.round)) * (D.DIFF[this.diff] ? D.DIFF[this.diff].hp : 1) * (this.CH ? this.CH.hp : 1); }
@@ -96,6 +96,8 @@
       if (r >= 11 && this.CH.elite2) q.splice(this.rand(q.length), 0, 'elite');
       // 금고: 라운드마다 이자
       if (this.meta.vault && r > 1) { const it = Math.min(Math.floor(this.gold * 0.02), r * 3); if (it > 0) { this.gold += it; this.emit('gold', { amt: it, why: '금고' }); } }
+      // [v5.7] 비축금(랜다2 전술): 가진 금화의 6% · 최대 라운드×3 (10% · ×4는 승률 88% — 희귀에서 가장 셈)
+      if (this.has('interest') && r > 1) { const it = Math.min(Math.floor(this.gold * 0.06), r * 3); if (it > 0) { this.gold += it; this.emit('gold', { amt: it, why: '비축금' }); } }
       // [v5.6] 보스 라운드는 보스 혼자(랜다2처럼) — 일반 몬스터 · 거인 · 엘리트를 부르지 않는다. 사용자(2026-11-10): '일반 몹이 있는 상태에서 보스가 나와 눈에 안 띈다'
       if (r % 5 === 0) q.length = 0;
       this.spawnQ = q; this.spawnEvery = ECON.spawnTime / Math.max(1, q.length); this.spawnT = 0;
@@ -118,7 +120,7 @@
       const dis = ['destroyer', 'ghost', 'witch', 'quake', 'swindler', 'magician'];
       if (r >= 20 && this.mode === 'conquest') kind = this.pickOne(['destroyer', 'ghost', 'quake']);
       else kind = this.r() < 0.18 ? this.pickOne(['piggy', 'goblin']) : this.pickOne(dis);
-      const hpMul = ECON.bossHp * (r >= 20 ? 1.1 : 1);
+      const hpMul = ECON.bossHp * (r >= 20 ? 1.1 : 1) * (this.has('weakspot') ? 0.75 : 1);   // [v5.7] 약점 파악
       const m = this.spawnMonster('normal', 0, 0, { boss: kind, hpMul, weight: kind === 'goblin' ? 0 : ECON.bossW, spd: (kind === 'goblin' ? 1.5 : 0.6) * ECON.bossSpd, abT: 6, born: this.t, cardOnKill: !(r >= 20 && this.mode === 'conquest'), w: 0 });
       m.kind = 'boss';
       this.boss = m; this.bossT = 0;
@@ -191,7 +193,7 @@
       if (this.has('sharp') && tw.tier <= 3) m *= 1.25;
       if (this.focusType === tw.type) m *= 1.4;
       if (this.has('lonely') && this.towersList().length <= 12) m *= 1.6;
-      if (this.has('deal')) m *= 1.5; if (this.has('awaken') && (this.awakenTypes || []).includes(tw.type)) m *= 1.3;   // [v5.6] 각성 맛보기 두 종류 피해 +30%
+      if (this.has('deal')) m *= 1.5; if (this.has('awaken') && (this.awakenTypes || []).includes(tw.type)) m *= 1.5;   // [v5.6] 각성 맛보기 두 종류 피해 +30% → [v5.7] +50%(보통 48판 58% — 영웅 평균 63%보다 낮았음)
       if (tw.type === 'tyrant' && this.countType('tyrant') === 1) m *= 2;
       return m;
     }
@@ -454,7 +456,7 @@
       // [v4.0] 미리 굴려 둘 수 있는 건 1번까지(줄이 길면 착지 결정 · 단계업 기회가 밀려 사라짐)
       if (this.rollQ.length >= ECON.rollQMax) return false;
       if (rescue) this.emit('rescueRoll', {}); else if (this.freeRolls > 0) this.freeRolls--; else { this.gold -= this.rollCost; this.emit('spend', { amt: this.rollCost, why: 'roll' }); }
-      const mid = this.has('midas') && (this.midasN = (this.midasN || 0) + 1) % 3 !== 0;   // [v5.6] 미다스의 손 = 세 번에 한 번만 오름(전: 안 오름)
+      const mid = this.has('midas') && (this.midasN = (this.midasN || 0) + 1) % 2 !== 0;   // [v5.6] 미다스의 손 = 세 번에 한 번만 오름(전: 안 오름) → [v5.7] 두 번에 한 번(보통 ×1.45에서도 48판 100% — 판이 끝남)
       if (!mid) this.rollCost += this.has('quickhand') ? Math.max(1, ECON.rollStep - 1) : ECON.rollStep;
       this.rolls++; this.stats.rolls++; this.lastRollT = this.t;
       this.rollQ.push(this.throwDice(aim));
@@ -768,21 +770,63 @@
       const id = cp.opts[k];
       this.cards.push(id); this.cardPicks++;
       this.emit('card', { id, name: CARDS[id].name });
-      const r = Math.max(1, this.round);
-      if (id === 'bighand') { const g = Math.max(20, r * 3); this.gold += g; this.emit('gold', { amt: g, why: '큰손' }); }
-      if (id === 'wall') this.limit += 8;
-      if (id === 'deal') this.limit -= 10;
-      if (id === 'focus') this.focusType = this.pickOne(this.deck);
-      if (id === 'awaken') { const pool = this.deck.filter(d => d !== 'prism'), a = this.pickOne(pool), b = this.pickOne(pool.filter(d => d !== a)) || a; this.awakenType = a; this.awakenTypes = [a, b]; }
-      if (id === 'lift') { const ts = this.towersList().filter(t => t.tower.tier < 5).sort((a, b) => a.tower.tier - b.tower.tier).slice(0, 3); for (const t of ts) this.setTier(t.i, t.tower.tier + 1, 'tierup'); }
-      if (id === 'seed') { const empty = this.tiles.filter(t => !t.corner && !t.tower); for (let n = 0; n < 2 && empty.length; n++) this.build(empty.splice(this.rand(empty.length), 1)[0].i, this.buildPick(), 1); }
-      if (id === 'freeroll') this.freeRolls = (this.freeRolls || 0) + 5;
-      if (id === 'gdice2') this.goldenDice = Math.min(3, this.goldenDice + 2);
-      if (id === 'reclaim') { const flat = this.tiles.filter(t => !t.corner && !t.trait); for (let n = 0; n < 3 && flat.length; n++) { const t = flat.splice(this.rand(flat.length), 1)[0]; t.trait = this.pickOne(['arms', 'drill', 'watch', 'holy', 'luck']); this.emit('reclaim2', { i: t.i }); } }
+      this.applyCard(id);
       cp.left--;
       if (cp.left > 0) { this.startCardPick(cp.left); return true; }
       this.cardPick = null; this.paused = false;
       if (this.round === 0) this.startRound();
+      return true;
+    }
+    // [v5.7] 카드 효과 — 판을 바꾸는 카드는 무엇이 어떻게 바뀌었는지 steps로 모아 'cardFx' 한 번에 알림(화면이 칸마다 차례로 보여 줌 · render13)
+    //   사용자(2026-11-10): '블록판 3개가 좋아진다를 골라도 어떤 블록이 어떻게 좋아지는지, 어디에 이펙트 · 포커싱이 가는지 모르겠다 — 딜레이가 있어도 된다'
+    //   그 사이 나온 tierup · build · reclaim2 사건엔 card: id가 붙어 옛 층이 따로 그리지 않는다
+    applyCard(id) {
+      const fx = this._cardFx = { id, steps: [], types: null };
+      const r = Math.max(1, this.round);
+      const tierUp = ts => { for (const t of ts) { const from = t.tower.tier; this.setTier(t.i, from + 1, 'tierup'); fx.steps.push({ i: t.i, kind: 'tier', from, to: from + 1, type: t.tower.type }); } };
+      if (id === 'bighand') { const g = Math.max(20, r * 3); this.gold += g; this.emit('gold', { amt: g, why: '큰손' }); }
+      if (id === 'wall') this.limit += 8;
+      if (id === 'deal') this.limit -= 10;
+      if (id === 'focus') { this.focusType = this.pickOne(this.deck); fx.types = [this.focusType]; }
+      if (id === 'awaken') { const pool = this.deck.filter(d => d !== 'prism'), a = this.pickOne(pool), b = this.pickOne(pool.filter(d => d !== a)) || a; this.awakenType = a; this.awakenTypes = [a, b]; fx.types = [a, b]; }
+      if (id === 'lift') tierUp(this.towersList().filter(t => t.tower.tier < 5).sort((a, b) => a.tower.tier - b.tower.tier).slice(0, 3));
+      if (id === 'lucky7') { const ts = this.towersList().filter(t => t.tower.tier < 5); for (let n = ts.length - 1; n > 0; n--) { const j = this.rand(n + 1); [ts[n], ts[j]] = [ts[j], ts[n]]; } tierUp(ts.slice(0, 7)); }
+      if (id === 'vote') {
+        const cnt = {}; for (const t of this.towersList()) if (t.tower.type !== 'prism') cnt[t.tower.type] = (cnt[t.tower.type] || 0) + 1;
+        const top = Object.keys(cnt).sort((a, b) => cnt[b] - cnt[a])[0];
+        if (top) { fx.types = [top]; tierUp(this.towersList().filter(t => t.tower.type === top && t.tower.tier < 5)); }
+      }
+      if (id === 'jokerhat') for (const t of this.towersList().filter(t => t.tower.type !== 'prism' && t.tower.tier < 6).sort((a, b) => a.tower.tier - b.tower.tier).slice(0, 3)) { const from = t.tower.type, ft = t.tower.tier; t.tower.type = 'prism'; if (ft < 5) this.setTier(t.i, ft + 1, 'tierup'); fx.steps.push({ i: t.i, kind: 'prism', from, to: 'prism', tier: t.tower.tier, fromTier: ft }); }   // 같은 단계 프리즘만으론 승률 38%(카드 없음 62%보다 낮음) → +1단계
+      if (id === 'seed') { const empty = this.tiles.filter(t => !t.corner && !t.tower); for (let n = 0; n < 2 && empty.length; n++) { const i = empty.splice(this.rand(empty.length), 1)[0].i, ty = this.buildPick(); this.build(i, ty, 1); fx.steps.push({ i, kind: 'build', type: ty, to: 1 }); } }
+      if (id === 'freeroll') this.freeRolls = (this.freeRolls || 0) + 5;
+      if (id === 'gdice2') { this.goldenDice = Math.min(3, this.goldenDice + 2); this.gold += 30; this.emit('gold', { amt: 30, why: '황금 주사위 둘' }); }   // [v5.7] + 금화 30(희귀인데 44% — 일반 평균 53%보다 낮았음)
+      if (id === 'reclaim') { const flat = this.tiles.filter(t => !t.corner && !t.trait); for (let n = 0; n < 3 && flat.length; n++) { const t = flat.splice(this.rand(flat.length), 1)[0]; t.trait = this.pickOne(['arms', 'drill', 'watch', 'holy', 'luck']); this.emit('reclaim2', { i: t.i }); fx.steps.push({ i: t.i, kind: 'trait', to: t.trait }); } }
+      this._cardFx = null;
+      this.emit('cardFx', fx);
+      return fx;
+    }
+    // [v5.7] 기적의 돌: 몬스터가 한도의 80%에 닿으면(판에 두 번까지) — 보스 말고 모두 사라짐(금화 없음) + 모든 포탑 +1단계(5단계까지)
+    miracle() {
+      this.miracleUsed = (this.miracleUsed || 0) + 1; this.miracleT = this.t + 20;   // [v5.7] 두 번까지(한 번은 48판 65% — 영웅 평균 63%와 같았음) · 다음은 20초 뒤부터
+      const fx = this._cardFx = { id: 'miracle', steps: [], types: null, trig: 1 };
+      for (const m of this.monsters) if (m.alive && !m.boss && m.kind !== 'truck') { m.alive = false; this.emit('poof', { x: m.x, y: m.y }); }
+      for (const t of this.towersList().filter(t => t.tower.tier < 5)) { const from = t.tower.tier; this.setTier(t.i, from + 1, 'tierup'); fx.steps.push({ i: t.i, kind: 'tier', from, to: from + 1, type: t.tower.type }); }
+      this._cardFx = null;
+      this.emit('cardFx', fx);
+    }
+    // [v5.7] 기다림 건너뛰기 — 사용자(2026-11-10): '몬스터를 빨리 잡으면 너무 기다린다. 이번 웨이브 몬스터(보스 포함)를 다 잡으면 켜지는 건너뛰기'
+    //   켜지는 때 = 라운드 진행 중 · 나올 몬스터가 다 나왔고 · 살아 있는 몬스터(보스 포함, 수송차 빼고)가 없음
+    canSkip() {
+      if (this.round < 1 || this.over || this.paused || this.cardPick) return false;
+      if (this.mode === 'conquest' && this.round >= ECON.rounds) return false;
+      if (this.spawnQ.length) return false;
+      return !this.monsters.some(m => m.alive && m.kind !== 'truck');
+    }
+    skipWait() {
+      if (!this.canSkip()) return false;
+      const left = Math.max(0, ECON.roundTime - this.roundT);
+      this.emit('skip', { left });
+      this.startRound();
       return true;
     }
 
@@ -986,6 +1030,7 @@
       this.mines = this.mines.filter(mi => !mi.used && this.t < mi.until);
       this.footprints = this.footprints.filter(fp => this.t < fp.until);
       this.weight = weight; this.stats.maxWeight = Math.max(this.stats.maxWeight, weight);
+      if (this.has('miracle') && (this.miracleUsed || 0) < 2 && weight >= this.limit * 0.8 && !(this.t < (this.miracleT || 0))) { this.miracle(); weight = this.monsters.reduce((a, m) => a + (m.alive ? m.weight : 0), 0); this.weight = weight; }
       if (weight > this.limit) { this.lose('limit'); return; }
       this.updateBoss(dt);
       this.updatePassives(dt);

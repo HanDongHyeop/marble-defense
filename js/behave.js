@@ -65,6 +65,7 @@
       monSpeedX(m, s) {
         if (this.t < m.frozenUntil) return 0;
         if (m.frz > 0) s *= 1 - 0.13 * m.frz;
+        if (this.has('heavy')) s *= 0.94;   // [v5.7] 무거운 발걸음(−8%는 일반인데 희귀 평균보다 셌음 → −6%)
         return s;
       },
       // 받는 피해: 속성 반응 → 저항 → 부식 → 치명
@@ -107,10 +108,11 @@
         let g = 0;
         if (m.kind === 'truck') { g = r * 8; this.emit('truckKill', { x: m.x, y: m.y }); this.stats.eliteKills = (this.stats.eliteKills || 0) + 1; }
         else if (m.kind === 'goldmon') g = Math.round(r * 2 * (this.sp('greed', 'gmGold') ? 1.5 : 1));
-        else if (m.boss) g = r * 5;
+        else if (m.boss) g = Math.round(ECON.count(r) * ECON.kill(r) * ECON.bossGold);   // [v5.7] v5.6에 sim.js만 고쳐 이 층(덮어씀)은 라운드×5로 남아 있었음 → 보스 라운드엔 일반 몬스터가 없으니 그 라운드 처치 금화를 보스가 대신
         else {
           g = Math.round(ECON.kill(r) * (MONSTERS[m.kind].gold || 1));
           if (src && src.tile != null && this.tiles[src.tile].trait === 'gold') g += 1;
+          if (this.has('bounty') && (this.bountyN = (this.bountyN || 0) + 1) % 2 === 0) g += 1;   // [v5.7] 현상금: 2마리마다 +1(마리마다 +1은 일반인데 79%)
           if (src && src.mineGold) g += src.mineGold;
           if (src && src.type === 'greed' && src.tier >= 3) g += 1;
           if (src && src.type === 'mining' && this.sp('mining', 'kill2')) g += 2;
@@ -170,7 +172,7 @@
         if (this.has('sharp') && tw.tier <= 3) m *= 1.25;
         if (this.focusType === tw.type) m *= 1.4;
         if (this.has('lonely') && this.towersList().length <= 12) m *= 1.6;
-        if (this.has('deal')) m *= 1.5; if (this.has('awaken') && (this.awakenTypes || []).includes(tw.type)) m *= 1.3;   // [v5.6] 각성 맛보기 두 종류 피해 +30%
+        if (this.has('deal')) m *= 1.5; if (this.has('awaken') && (this.awakenTypes || []).includes(tw.type)) m *= 1.5;   // [v5.6] 각성 맛보기 두 종류 피해 +30% → [v5.7] +50%(보통 48판 58% — 영웅 평균 63%보다 낮았음)
         if (tw.type === 'tyrant' && this.countType('tyrant') === 1) m *= 1.8;   // [v4.5 2 → 1.8: 심연 덱이 가장 강했음]
         if (tw.type === 'combo') m *= 1 + 0.04 * Math.min(this.sp('combo', 'comboCap') ? 40 : 30, this.comboStack);   // [조정: 5% → 3%, 30까지]
         if (tw.type === 'greed') m *= 1 + Math.min(0.4, Math.floor(this.gold / 15) * 0.05);   // [v4.6 금화 단위 1/8: 100 → 15]   // [v4.0 조정: 최대 +50 → +40%]

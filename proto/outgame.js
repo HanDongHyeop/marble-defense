@@ -84,16 +84,31 @@
   if (S.miss == null) S.miss = 0;
   // [v5.4] 로비 소리: 배경음(본편 bgm_lobby) · 단추 톡 · 주사위 · 혜택. 폰은 첫 터치 때 켜진다(자동 재생 막힘). 판에 들어가면 멈추고 나오면 다시
   const SFXD = '../assets/sfx/';
+  // [v5.7] 아이폰에서 로비가 무음이던 원인: 첫 터치를 pointerdown에서 받았는데, 터치의 pointerdown은 '소리 허용 동작'이 아니다(HTML 규칙 — pointerup · touchend · click만).
+  //   그래서 play()가 조용히 거절되고 unlocked = true라 다시 시도도 안 했음 → pointerup · touchend · click에서 켜고, 실제로 재생될 때까지 터치마다 다시 시도.
+  //   효과음도 같은 이유로 새 Audio()가 막히므로 Web Audio 버퍼로 냄(한 번 열린 AudioContext는 계속 쓸 수 있음)
   const SND = {
-    unlocked: false, ctx: null, bgm: null,
-    unlock() { if (this.unlocked) return; this.unlocked = true; try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { this.ctx = null; } this.music(); },
-    music() {
+    unlocked: false, ctx: null, bgm: null, playing: false, buf: {},
+    unlock() {
+      if (!this.ctx) { try { this.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { this.ctx = null; } }
+      const c = this.ctx;
+      if (c) { if (c.state !== 'running') { const p = c.resume(); if (p && p.catch) p.catch(() => {}); } try { const b = c.createBuffer(1, 1, 22050), s = c.createBufferSource(); s.buffer = b; s.connect(c.destination); s.start(0); } catch (e) { /* 무시 */ } }
+      this.unlocked = true;
+      this.music(true);
+      if (c && !this.loaded) { this.loaded = 1; ['card', 'dice', 'coin', 'build', 'jackpot', 'tierup', 'merge'].forEach(n => fetch(SFXD + n + '.mp3').then(r => r.arrayBuffer()).then(ab => new Promise((ok, no) => c.decodeAudioData(ab, ok, no))).then(b => { this.buf[n] = b; }).catch(() => {})); }
+    },
+    music(gesture) {
       if (!this.unlocked) return;
       const want = S.set.bgm && !ui.inGame && !document.hidden;
-      if (!this.bgm) { this.bgm = new Audio(SFXD + 'bgm_lobby.mp3'); this.bgm.loop = true; this.bgm.volume = 1; }   // [v5.6] 크기는 파일에 구움(아이폰은 volume이 안 먹음)
-      if (want) { const pr = this.bgm.play(); if (pr && pr.catch) pr.catch(() => {}); } else this.bgm.pause();
+      if (!this.bgm) { this.bgm = new Audio(SFXD + 'bgm_lobby.mp3'); this.bgm.loop = true; this.bgm.volume = 1; this.bgm.preload = 'auto'; this.bgm.addEventListener('playing', () => { this.playing = true; }); this.bgm.addEventListener('pause', () => { this.playing = false; }); }   // [v5.6] 크기는 파일에 구움(아이폰은 volume이 안 먹음)
+      if (want) { if (!this.playing || gesture) { const pr = this.bgm.play(); if (pr && pr.catch) pr.catch(() => {}); } } else this.bgm.pause();
     },
-    play(n, vol) { if (!this.unlocked || !S.set.sfx) return; try { const a = new Audio(SFXD + n + '.mp3'); a.volume = vol == null ? 0.6 : vol; const pr = a.play(); if (pr && pr.catch) pr.catch(() => {}); } catch (e) { /* 소리 없음 */ } },
+    play(n, vol) {
+      if (!this.unlocked || !S.set.sfx) return;
+      const c = this.ctx, b = this.buf[n];
+      if (c && b && c.state === 'running') { try { const s = c.createBufferSource(), g = c.createGain(); g.gain.value = vol == null ? 0.6 : vol; s.buffer = b; s.connect(g); g.connect(c.destination); s.start(0); return; } catch (e) { /* 아래로 */ } }
+      try { const a = new Audio(SFXD + n + '.mp3'); a.volume = vol == null ? 0.6 : vol; const pr = a.play(); if (pr && pr.catch) pr.catch(() => {}); } catch (e) { /* 소리 없음 */ }
+    },
     tone(f, f2, d, v, wave) { const c = this.ctx; if (!c || !S.set.sfx) return; if (c.state === 'suspended') c.resume(); const t = c.currentTime, o = c.createOscillator(), g = c.createGain(); o.type = wave || 'triangle'; o.frequency.setValueAtTime(f, t); if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + d); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(v || 0.08, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0008, t + d); o.connect(g); g.connect(c.destination); o.start(t); o.stop(t + d + 0.05); },
     click() { this.tone(520, 700, 0.07, 0.07); },
   };
@@ -802,7 +817,7 @@
     settings() {
       open({ type: 'sheet', title: '설정', body: () => `<div class="setlist setgrid">${[['sfx', '효과음'], ['bgm', '배경음'], ['haptic', '진동', '안드로이드 · 아이폰은 단추만'], ['dmg', '피해 숫자'], ['shake', '화면 흔들림']].map(([k, n, sub]) => B('tog', k, 'setrow', `<span class="k">${n}${sub ? `<small>${sub}</small>` : ''}</span><span class="tog ${S.set[k] ? '' : 'off'}"></span>`)).join('')}</div>
         <div class="sec-t">계정</div><div class="devgrid">${B('go', 'profile', 'btn sec', '내 정보')}${B('export', null, 'btn sec', '옮기기 코드')}${B('resetAsk', null, 'btn red', '처음 상태로')}${B('dev', null, 'btn sec', '🛠 개발 도구')}</div>
-        <div class="note" style="margin-top:14px">시안 v5.6 · 마블 디펜스</div>` });
+        <div class="note" style="margin-top:14px">시안 v5.7 · 마블 디펜스</div>` });
     },
     // [v5.4] 개발 도구(나중에 뺄 것): 포탑 열고 닫기 · 재화 · 장 · 패스 · 출석 · 다음 시작 6·6
     dev() {
@@ -889,7 +904,8 @@
     if (!['start', 'coop', 'endless', 'retry'].includes(p.el.dataset.act)) SND.click();
     const fn = A[p.el.dataset.act]; if (fn) { try { fn(p.el.dataset.arg); } catch (err) { console.error(err); toast('오류: ' + err.message); } }
   });
-  document.addEventListener('pointerdown', () => SND.unlock(), true);   // 단추 밖을 눌러도 소리 켜기(첫 터치)
+  // [v5.7] 소리 켜기 = 손을 뗄 때(pointerup · touchend · click) — 배경음이 실제로 돌 때까지 매번 다시 시도
+  for (const ev of ['pointerup', 'touchend', 'click']) document.addEventListener(ev, () => { if (!SND.playing || !SND.ctx || SND.ctx.state !== 'running') SND.unlock(); }, true);
   document.addEventListener('pointercancel', () => { if (P) { P.el.classList.remove('press'); P = null; } });
   document.addEventListener('input', e => { if (e.target.id === 'nmInp') ui.lastName = e.target.value; });
   document.addEventListener('contextmenu', e => e.preventDefault());

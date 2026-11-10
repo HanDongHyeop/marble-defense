@@ -66,6 +66,8 @@
       $('p2Btn').addEventListener('pointerdown', e => { e.preventDefault(); s.init(); if (this.g && this.g.partnerPress && this.app.cmd('partnerPress')) s.click(); else s.error(); });
       $('truckBtn').addEventListener('click', () => { s.init(); if (!(this.g && this.app.cmd('callTruck'))) s.error(); });
       $('pauseBtn').addEventListener('click', () => { s.init(); s.click(); this.pauseMenu(); });
+      // [v5.7] 기다림 건너뛰기: 이번 웨이브 몬스터(보스 포함)를 다 잡았을 때만 켜짐(sim canSkip)
+      $('skipBtn').addEventListener('click', () => { s.init(); if (this.g && this.g.canSkip() && this.app.cmd('skipWait')) { s.click(); if (s.upgrade) s.upgrade(); } else s.error(); });
       $('deckRow').addEventListener('click', e => {
         const b = e.target.closest('.deck'); if (!b || !this.g) return; s.init();
         if (this.app.cmd('upgrade', [b.dataset.k])) { b.classList.remove('flash'); void b.offsetWidth; b.classList.add('flash'); }
@@ -218,6 +220,7 @@
       let tt = g.finalT != null ? Math.max(0, 90 - g.finalT) : g.boss && g.boss.alive && g.bossT < D.ECON.bossHold ? Math.max(0, D.ECON.bossHold - g.bossT) : Math.max(0, 21 - g.roundT);   // [v5.6] 보스전 = 보스 제한 시간
       if (g.round === 0) tt = 0;
       $('timerTxt').textContent = `${Math.floor(tt / 60)}:${String(Math.floor(tt % 60)).padStart(2, '0')}`;
+      { const ok = !!g.canSkip() && !(this.app.net && this.app.net.role === 'guest'), sb = $('skipBtn'); if (sb.disabled === ok) { sb.disabled = !ok; sb.classList.toggle('on', ok); if (ok) { sb.classList.remove('pop'); void sb.offsetWidth; sb.classList.add('pop'); } } }
       // 카드 칩
       const chips = g.cards.map(c => `<span class="chip ${D.CARDS[c].g}">${D.CARDS[c].name}</span>`).join('');
       if (chips !== this._chips) { $('chips').innerHTML = chips; this._chips = chips; }
@@ -310,8 +313,8 @@
         if (pair && !this._mergeHint) { this._mergeHint = 1; this.toast('합치기', '같은 포탑끼리 끌어 겹쳐 보세요', '같은 종류 + 같은 단계 → 한 단계 위', false, 3.2); }
       }
       if (!this.tut.merge && g.stats.merges > 0) { this.tut.merge = 1; store.set('tut', this.tut); }
-      // 사건 → 알림 창
-      if (g.cardPick && !this.modalOpen() && g.cardPick !== this._cardDone) { if (this.app.net && this.app.net.role === 'guest') { if (this._cardToast !== g.cardPick) { this._cardToast = g.cardPick; this.toast('작전 카드', '1P가 고르는 중', '잠시만요', false, 2); } } else this.cardModal(); }
+      // 사건 → 알림 창 ([v5.7] 앞 카드의 판 연출이 끝난 뒤 다음 카드)
+      if (g.cardPick && !this.modalOpen() && g.cardPick !== this._cardDone && !(this.app.renderer && this.app.renderer.cardBusy && this.app.renderer.cardBusy())) { if (this.app.net && this.app.net.role === 'guest') { if (this._cardToast !== g.cardPick) { this._cardToast = g.cardPick; this.toast('작전 카드', '1P가 고르는 중', '잠시만요', false, 2); } } else this.cardModal(); }
       if (g.over && !this._overShown) { this._overShown = true; setTimeout(() => this.resultModal(), 1200); }
     }
     onEvent(e) {
