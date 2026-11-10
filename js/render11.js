@@ -59,13 +59,17 @@
   };
 
   // ------------------------------------------------------------ 걸려 있는 동안 표시(매 프레임 · 가볍게) — 발밑 빛 + 떠다니는 빛 알갱이만(화살표 없음)
-  R.fxMarks = function (c, g) {
+  // [v5.6] 발밑 빛(part = 'ground')은 포탑 · 몬스터 아래 층, 떠다니는 알갱이(part = 'motes')는 위 층 — render12의 drawFx 끼움에서 부름
+  //   사용자(2026-11-10): '너프 · 버프 원형 이펙트가 몬스터 · 포탑 위 레이어로 나온다 → 아래 레이어로'
+  R.fxMarks = function (c, g, part) {
     if (!g || !g.lfx) return;
+    const GR = part !== 'motes', MO = part !== 'ground';
     const t = this.time;
     for (const k in D.LANDFX) {
       if (!g.fxOn(k)) continue;
       const left = g.fxLeft(k), blink = left < 2 ? (Math.sin(t * 18) > 0 ? 1 : 0.25) : 1, col = COL[k], up = !!UP[k];
       const motes = (x, y, h, seed, n) => {   // 세지면 위로 오르고, 약해지면 위에서 내려앉는 알갱이
+        if (!MO) return;
         for (let q = 0; q < n; q++) {
           const ph = (t * 0.8 + seed * 0.37 + q / n) % 1, sx = x + Math.sin(seed * 7 + q * 3.1) * 15, sy = up ? y - 6 - ph * h : y - h + ph * (h - 6);
           c.save(); c.globalAlpha = blink * 0.9 * (ph < 0.2 ? ph / 0.2 : 1 - (ph - 0.2) / 0.8); this.star(c, sx, sy, 4, 5 - ph * 2, 1.8, t * 2 + q, q % 2 ? '#ffffff' : col[0]); c.restore();
@@ -74,16 +78,16 @@
       if (ON_TOWER[k]) {
         g.tiles.forEach((tl, j) => {
           if (!tl.tower) return; const [x, y] = G.tiles[tl.i].tower;
-          c.save(); const pa = blink * (0.75 + 0.25 * Math.sin(t * 5 + j)); c.globalAlpha = 0.45 * pa; c.fillStyle = col[1]; c.beginPath(); c.ellipse(x, y + 6, 36, 14, 0, 0, TAU); c.fill();
-          const gl = c.createLinearGradient(0, y + 6, 0, y - 70); gl.addColorStop(0, col[1]); gl.addColorStop(1, 'rgba(255,255,255,0)'); c.globalAlpha = 0.2 * pa; c.fillStyle = gl; c.fillRect(x - 26, y - 70, 52, 76); c.restore();
+          if (GR) { c.save(); const pa = blink * (0.75 + 0.25 * Math.sin(t * 5 + j)); c.globalAlpha = 0.45 * pa; c.fillStyle = col[1]; c.beginPath(); c.ellipse(x, y + 6, 36, 14, 0, 0, TAU); c.fill();
+          const gl = c.createLinearGradient(0, y + 6, 0, y - 70); gl.addColorStop(0, col[1]); gl.addColorStop(1, 'rgba(255,255,255,0)'); c.globalAlpha = 0.2 * pa; c.fillStyle = gl; c.fillRect(x - 26, y - 70, 52, 76); c.restore(); }
           motes(x, y, 72, j, 2);
         });
       } else {
         for (const m of g.monsters) {
           if (!m.alive) continue; const h = 34 * (m.g || 1) + (m.boss ? 30 : 0);
-          if (k === 'slow') { c.save(); c.globalAlpha = 0.55 * blink; c.strokeStyle = col[1]; c.lineWidth = 4; c.beginPath(); c.ellipse(m.x, m.y + 2, 18 * (m.g || 1), 7 * (m.g || 1), 0, 0, TAU); c.stroke(); c.restore(); }
-          if (k === 'rush') { c.save(); c.globalAlpha = 0.5 * blink; c.strokeStyle = col[1]; c.lineWidth = 2; for (let q = 0; q < 3; q++) { const yy = m.y - 6 - q * 7, ph = (t * 3 + q * 0.3) % 1; c.beginPath(); c.moveTo(m.x - 18 - ph * 10, yy); c.lineTo(m.x - 30 - ph * 10, yy); c.stroke(); } c.restore(); }
-          c.save(); c.globalAlpha = 0.4 * blink; c.fillStyle = col[1]; c.beginPath(); c.ellipse(m.x, m.y + 2, 20 * (m.g || 1), 8 * (m.g || 1), 0, 0, TAU); c.fill(); c.restore();
+          if (GR && k === 'slow') { c.save(); c.globalAlpha = 0.55 * blink; c.strokeStyle = col[1]; c.lineWidth = 4; c.beginPath(); c.ellipse(m.x, m.y + 2, 18 * (m.g || 1), 7 * (m.g || 1), 0, 0, TAU); c.stroke(); c.restore(); }
+          if (GR && k === 'rush') { c.save(); c.globalAlpha = 0.5 * blink; c.strokeStyle = col[1]; c.lineWidth = 2; for (let q = 0; q < 3; q++) { const yy = m.y - 6 - q * 7, ph = (t * 3 + q * 0.3) % 1; c.beginPath(); c.moveTo(m.x - 18 - ph * 10, yy); c.lineTo(m.x - 30 - ph * 10, yy); c.stroke(); } c.restore(); }
+          if (GR) { c.save(); c.globalAlpha = 0.4 * blink; c.fillStyle = col[1]; c.beginPath(); c.ellipse(m.x, m.y + 2, 20 * (m.g || 1), 8 * (m.g || 1), 0, 0, TAU); c.fill(); c.restore(); }
           motes(m.x, m.y, h + 10, m.id, 1);
         }
       }
@@ -117,15 +121,14 @@
     }
   };
 
-  const baseDrawTop = R.drawTop;
-  R.drawTop = function (dt) { baseDrawTop.call(this, dt); if (this._g) this.fxMarks(this.top, this._g); };
+  // [v5.6] 예전엔 맨 위 캔버스(drawTop)에 그려 포탑 · 몬스터를 덮었음 → render12에서 층을 나눠 부름
 
   // ------------------------------------------------------------ 알림 띠: 반투명 붓질 + 글자 모션(판을 가리지 않음)
   R.drawRibbon = function (c) {
     const S = this.v47(), r = S.ribbons[0]; if (!r) return;
     const a = this.time - r.t0; if (a >= r.dur) { S.ribbons.shift(); if (S.ribbons[0]) S.ribbons[0].t0 = this.time; return; }
     if (!r.br) { r.br = Array.from({ length: 7 }, (_, k) => ({ y: (k - 3) * 10 + rnd(-2, 2), x0: rnd(-30, 30), x1: 720 + rnd(-60, 20), w: rnd(10, 15), d: rnd(0, 0.08) })); }
-    const y = 198, op = clamp((a - (r.dur - 0.3)) / 0.3, 0, 1), pal = r.good ? ['#fff3b8', '#ffc21c', '#ffe28a'] : ['#f0dcff', '#b07cff', '#d8b8ff'];
+    const y = 198, op = clamp((a - (r.dur - 0.3)) / 0.3, 0, 1), pal = r.col ? ['#ffffff', r.col, r.col] : r.good ? ['#fff3b8', '#ffc21c', '#ffe28a'] : ['#f0dcff', '#b07cff', '#d8b8ff'];   // [v5.6] 보스 스킬 = 스킬 색
     c.save(); c.globalAlpha = 1 - op; c.lineCap = 'round';
     // 붓질 띠(왼쪽 → 오른쪽으로 쓸림)
     for (const b of r.br) {

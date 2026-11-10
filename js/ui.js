@@ -215,7 +215,7 @@
       $('gaugeFill').style.width = Math.min(100, w / lim * 100) + '%';
       $('gauge').classList.toggle('warn', w / lim > 0.75);
       // 타이머: 라운드 남은 시간 / 마지막 보스 제한
-      let tt = g.finalT != null ? Math.max(0, 90 - g.finalT) : Math.max(0, 21 - g.roundT);
+      let tt = g.finalT != null ? Math.max(0, 90 - g.finalT) : g.boss && g.boss.alive && g.bossT < D.ECON.bossHold ? Math.max(0, D.ECON.bossHold - g.bossT) : Math.max(0, 21 - g.roundT);   // [v5.6] 보스전 = 보스 제한 시간
       if (g.round === 0) tt = 0;
       $('timerTxt').textContent = `${Math.floor(tt / 60)}:${String(Math.floor(tt % 60)).padStart(2, '0')}`;
       // 카드 칩
@@ -559,10 +559,13 @@
       const cost = cp.rerolls === 0 ? '무료' : (15 * cp.rerolls) + '금화', rr = cp.rerolls === 0 || g.gold - 15 * cp.rerolls >= g.rollCost;
       const m = this.open(`<div class="mbox" style="width:690px"><h2>작전 카드</h2><p class="sub">${g.round === 0 ? '판 시작 — 이번 판의 전략을 고르세요' : '보스 처치 보상'}${cp.left > 1 ? ' · ' + cp.left + '장 남음' : ''}</p>
         ${(() => { const P = D.CARD_PITY, pe = g.pity ? g.pity.e : 0, pl = g.pity ? g.pity.l : 0; return `<div class="pityrow"><span>영웅 보장까지 ${P.e.sure - pe}묶음 <i style="--p:${pe / P.e.sure * 100}%;--a:#c88aff;--b:#8a3ae0"></i></span><span>전설 보장까지 ${P.l.sure - pl}묶음 <i style="--p:${pl / P.l.sure * 100}%;--a:#ffe28a;--b:#ff8a1c"></i></span></div>`; })()}
-        <div class="cards reveal">${cp.opts.map((id, k) => `<button class="card ${D.CARDS[id].g}" data-k="${k}" style="--k:${k}"><i class="cover"></i><span class="g">${G2[D.CARDS[id].g]}</span><div class="ico"><img src="${this.img('k_' + id)}" alt="" onerror="this.replaceWith(document.createTextNode('${ICON[id] || '★'}'))"></div><div class="nm">${D.CARDS[id].name}</div><div class="ds">${D.CARDS[id].desc}</div></button>`).join('')}</div>
+        <div class="cards reveal">${cp.opts.map((id, k) => { const gr = D.CARDS[id].g, NS = { c: 0, r: 8, e: 14, l: 24 }[gr], sp = Array.from({ length: NS }, (_, q) => { const a = q / NS * 6.283 + Math.random() * 0.4, d = (gr === 'l' ? 150 : 110) * (0.6 + Math.random() * 0.5); return `<i class="sp" style="--dx:${(Math.cos(a) * d).toFixed(0)}px;--dy:${(Math.sin(a) * d * 0.9 - 20).toFixed(0)}px"></i>`; }).join(''), fl = gr === 'l' ? Array.from({ length: 7 }, (_, q) => `<i class="fl" style="--x:${12 + q * 12}%;--d:${(q * 0.31).toFixed(2)}s"></i>`).join('') : '';
+          // [v5.6] 등급 연출 칸: 카드 밖 아우라 · 뒤 빛살 · 뒤집힐 때 번쩍 · 고리 · 알갱이 · (전설) 떠오르는 반짝이 — css/v56.css
+          return `<div class="cslot ${gr}" style="--k:${k}"><i class="aura"></i><i class="rays"></i><button class="card ${gr}" data-k="${k}" style="--k:${k}"><i class="cover"></i><i class="orn"></i><span class="g">${G2[gr]}</span><div class="ico"><img src="${this.img('k_' + id)}" alt="" onerror="this.replaceWith(document.createTextNode('${ICON[id] || '★'}'))"></div><div class="nm">${D.CARDS[id].name}</div><div class="ds">${D.CARDS[id].desc}</div></button><i class="flash"></i><i class="ring"></i>${gr === 'l' ? '<i class="ring ring2"></i>' : ''}${sp}${fl}</div>`; }).join('')}</div>
         <div class="btns"><button class="btn sec" data-act="reroll"${rr ? '' : ' disabled title="굴릴 금화는 남겨 둬요"'}>다시 뽑기 (${cost})${rr ? '' : ' · 금화 부족'}</button></div></div>`);
       root.SFX.card();
-      cp.opts.forEach((id, k) => setTimeout(() => { try { root.SFX.click(); if (D.CARDS[id].g === 'l') root.SFX.jackpot(); } catch (err) { /* 소리 없음 */ } }, 560 + k * 220));
+      // [v5.6] 뒤집힐 때 소리도 등급 사다리: 일반 = 톡 · 희귀 = 세 음 · 영웅 = 세 음 + 반짝 · 전설 = 대박
+      cp.opts.forEach((id, k) => setTimeout(() => { try { const gr = D.CARDS[id].g; root.SFX.click(); if (gr === 'r' || gr === 'e') root.SFX.upgrade(); if (gr === 'e') root.SFX.card(); if (gr === 'l') root.SFX.jackpot(); } catch (err) { /* 소리 없음 */ } }, 600 + k * 220));
       m.onclick = e => {
         const c = e.target.closest('.card');
         if (c) { this.close(); root.SFX.card(); this._cardDone = g.cardPick; this.app.cmd('pickCard', [+c.dataset.k]); if (g.round <= 1) root.SFX.music('battle'); return; }

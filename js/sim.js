@@ -96,7 +96,9 @@
       if (r >= 11 && this.CH.elite2) q.splice(this.rand(q.length), 0, 'elite');
       // 금고: 라운드마다 이자
       if (this.meta.vault && r > 1) { const it = Math.min(Math.floor(this.gold * 0.02), r * 3); if (it > 0) { this.gold += it; this.emit('gold', { amt: it, why: '금고' }); } }
-      this.spawnQ = q; this.spawnEvery = ECON.spawnTime / q.length; this.spawnT = 0;
+      // [v5.6] 보스 라운드는 보스 혼자(랜다2처럼) — 일반 몬스터 · 거인 · 엘리트를 부르지 않는다. 사용자(2026-11-10): '일반 몹이 있는 상태에서 보스가 나와 눈에 안 띈다'
+      if (r % 5 === 0) q.length = 0;
+      this.spawnQ = q; this.spawnEvery = ECON.spawnTime / Math.max(1, q.length); this.spawnT = 0;
       if (r % 5 === 0) this.spawnBoss();
       this.emit('round', { round: r, boss: r % 5 === 0 });
       if ([3, 7, 12, 17].includes(r) && !this.mission) this.startMission();
@@ -117,7 +119,7 @@
       if (r >= 20 && this.mode === 'conquest') kind = this.pickOne(['destroyer', 'ghost', 'quake']);
       else kind = this.r() < 0.18 ? this.pickOne(['piggy', 'goblin']) : this.pickOne(dis);
       const hpMul = ECON.bossHp * (r >= 20 ? 1.1 : 1);
-      const m = this.spawnMonster('normal', 0, 0, { boss: kind, hpMul, weight: kind === 'goblin' ? 0 : ECON.bossW, spd: kind === 'goblin' ? 1.5 : 0.6, abT: 6, born: this.t, cardOnKill: !(r >= 20 && this.mode === 'conquest'), w: 0 });
+      const m = this.spawnMonster('normal', 0, 0, { boss: kind, hpMul, weight: kind === 'goblin' ? 0 : ECON.bossW, spd: (kind === 'goblin' ? 1.5 : 0.6) * ECON.bossSpd, abT: 6, born: this.t, cardOnKill: !(r >= 20 && this.mode === 'conquest'), w: 0 });
       m.kind = 'boss';
       this.boss = m; this.bossT = 0;
       if (r >= 20 && this.mode === 'conquest') this.finalT = 0;
@@ -154,7 +156,7 @@
       const r = this.round;
       let g = 0;
       if (m.kind === 'truck') { g = r * 8; this.emit('truckKill', { x: m.x, y: m.y }); }
-      else if (m.boss) { g = r * 5; }
+      else if (m.boss) { g = Math.round(ECON.count(r) * ECON.kill(r) * ECON.bossGold); }   // [v5.6] 보스 라운드엔 일반 몬스터가 없으니 그 라운드 처치 금화를 보스가 대신 준다(전: 라운드×5)
       else g = Math.round(ECON.kill(r) * (MONSTERS[m.kind].gold || 1)) + (src && src.tile != null && this.tiles[src.tile].trait === 'gold' ? 1 : 0);
       if (src && src.thud) this.stats.thudKills++;
       this.gold += g; this.stats.kills++;
@@ -167,6 +169,7 @@
     bossDown(m) {
       const k = m.boss;
       this.boss = null;
+      if (this.roundT > ECON.roundTime - 2) this.roundT = ECON.roundTime - 2;   // [v5.6] 보스를 잡으면 2초 숨 돌린 뒤 다음 라운드
       this.emit('bossDown', { boss: k });
       if (this.round >= 20 && this.mode === 'conquest' && k !== 'goblin' && k !== 'piggy') { this.win(); return; }
       const picks = k === 'goblin' ? 2 : 1;
@@ -184,11 +187,11 @@
       const t = this.tiles[i], tw = t.tower, T = TOWERS[tw.type];
       let m = T.atk * (1 + D.ECON.upgStep * (this.upg[tw.type] || 0));
       if (t.trait === 'arms') m *= 1.3;
-      if (t.zone >= 0 && this.zoneFull(t.zone)) m *= this.has('fortx2') ? 2 : 1.5;
+      if (t.zone >= 0 && this.zoneFull(t.zone)) m *= this.has('fortx2') ? 2.25 : 1.5;
       if (this.has('sharp') && tw.tier <= 3) m *= 1.25;
       if (this.focusType === tw.type) m *= 1.4;
-      if (this.has('lonely') && this.towersList().length <= 8) m *= 1.5;
-      if (this.has('deal')) m *= 1.5;
+      if (this.has('lonely') && this.towersList().length <= 12) m *= 1.6;
+      if (this.has('deal')) m *= 1.5; if (this.has('awaken') && (this.awakenTypes || []).includes(tw.type)) m *= 1.3;   // [v5.6] 각성 맛보기 두 종류 피해 +30%
       if (tw.type === 'tyrant' && this.countType('tyrant') === 1) m *= 2;
       return m;
     }
@@ -215,7 +218,8 @@
       let a = T.aps * TIER.aps[tw.tier] * (1 + add);
       if (t.trait === 'web') a *= 0.8;
       if (this.fxOn('aps')) a *= 1 + LANDFX.aps.v;
-      if (this.has('haste')) a *= 1.2;   // [v5.4] 질풍
+      if (this.has('haste')) a *= 1.3;   // [v5.4] 질풍(v5.6: 1.2 → 1.3)
+      if (tw.rushUntil && this.t < tw.rushUntil) a *= 1.5;   // [v5.6] 출동 대장
       if (this.fxOn('apsDown')) a *= 1 - LANDFX.apsDown.v;
       if (this.t < (tw.blessUntil || 0)) a *= 2;
       if (this.t < (tw.barrageUntil || 0)) a *= 3;
@@ -405,7 +409,7 @@
       let k = ECON.strikeMul * mul * (1 + 0.1 * this.combo);
       if (this.tiles[i].trait === 'holy') k *= 2;
       if (this.pawnId === 'dog') k *= 1.35;
-      if (this.has('strikex2')) k *= 2;
+      if (this.has('strikex2')) k *= 3;
       const per = this.dmgMul(i) * TIER.dmg[tw.tier] * Math.max(1, TIER.shots[tw.tier]) * k, src = this.srcOf(i);
       this.stats.strikes++;
       const z = this.tiles[i].zone;
@@ -450,7 +454,8 @@
       // [v4.0] 미리 굴려 둘 수 있는 건 1번까지(줄이 길면 착지 결정 · 단계업 기회가 밀려 사라짐)
       if (this.rollQ.length >= ECON.rollQMax) return false;
       if (rescue) this.emit('rescueRoll', {}); else if (this.freeRolls > 0) this.freeRolls--; else { this.gold -= this.rollCost; this.emit('spend', { amt: this.rollCost, why: 'roll' }); }
-      if (!this.has('midas')) this.rollCost += this.has('quickhand') ? Math.max(1, ECON.rollStep - 1) : ECON.rollStep;   // [v5.4] 미다스의 손 = 더 안 오름
+      const mid = this.has('midas') && (this.midasN = (this.midasN || 0) + 1) % 3 !== 0;   // [v5.6] 미다스의 손 = 세 번에 한 번만 오름(전: 안 오름)
+      if (!mid) this.rollCost += this.has('quickhand') ? Math.max(1, ECON.rollStep - 1) : ECON.rollStep;
       this.rolls++; this.stats.rolls++; this.lastRollT = this.t;
       this.rollQ.push(this.throwDice(aim));
       this.emit('rollBtn', { aim: aim || 0 });
@@ -768,12 +773,12 @@
       if (id === 'wall') this.limit += 8;
       if (id === 'deal') this.limit -= 10;
       if (id === 'focus') this.focusType = this.pickOne(this.deck);
-      if (id === 'awaken') this.awakenType = this.pickOne(this.deck.filter(d => d !== 'prism'));
-      if (id === 'lift') { const ts = this.towersList().filter(t => t.tower.tier < 5).sort((a, b) => a.tower.tier - b.tower.tier).slice(0, 2); for (const t of ts) this.setTier(t.i, t.tower.tier + 1, 'tierup'); }
+      if (id === 'awaken') { const pool = this.deck.filter(d => d !== 'prism'), a = this.pickOne(pool), b = this.pickOne(pool.filter(d => d !== a)) || a; this.awakenType = a; this.awakenTypes = [a, b]; }
+      if (id === 'lift') { const ts = this.towersList().filter(t => t.tower.tier < 5).sort((a, b) => a.tower.tier - b.tower.tier).slice(0, 3); for (const t of ts) this.setTier(t.i, t.tower.tier + 1, 'tierup'); }
       if (id === 'seed') { const empty = this.tiles.filter(t => !t.corner && !t.tower); for (let n = 0; n < 2 && empty.length; n++) this.build(empty.splice(this.rand(empty.length), 1)[0].i, this.buildPick(), 1); }
       if (id === 'freeroll') this.freeRolls = (this.freeRolls || 0) + 5;
       if (id === 'gdice2') this.goldenDice = Math.min(3, this.goldenDice + 2);
-      if (id === 'reclaim') { const flat = this.tiles.filter(t => !t.corner && !t.trait); for (let n = 0; n < 2 && flat.length; n++) { const t = flat.splice(this.rand(flat.length), 1)[0]; t.trait = this.pickOne(['arms', 'drill', 'watch', 'holy', 'luck']); this.emit('reclaim2', { i: t.i }); } }
+      if (id === 'reclaim') { const flat = this.tiles.filter(t => !t.corner && !t.trait); for (let n = 0; n < 3 && flat.length; n++) { const t = flat.splice(this.rand(flat.length), 1)[0]; t.trait = this.pickOne(['arms', 'drill', 'watch', 'holy', 'luck']); this.emit('reclaim2', { i: t.i }); } }
       cp.left--;
       if (cp.left > 0) { this.startCardPick(cp.left); return true; }
       this.cardPick = null; this.paused = false;
@@ -824,7 +829,7 @@
       this.emit('commander', { id: this.cmd.id, i });
       return true;
     }
-    truckReady() { return this.t >= this.truck.readyAt && this.round > 0 && !this.over && !this.monsters.some(m => m.alive && m.kind === 'truck'); }
+    truckReady() { return this.t >= this.truck.readyAt && this.round > 0 && !this.over && !this.boss && !this.monsters.some(m => m.alive && m.kind === 'truck'); }   // [v5.6] 보스전엔 수송차 안 부름(보스만 보이게)
     callTruck() {
       if (!this.truckReady()) return false;
       const hpMul = 8 * Math.pow(1.5, this.truck.calls);
@@ -894,9 +899,13 @@
       if (k === 'goblin' && b.dist >= 24) { b.alive = false; this.boss = null; this.emit('escape', { x: b.x, y: b.y }); return; }
       if (BOSSES[k].kind !== 'disrupt') return;
       b.abT -= dt * (enr ? 2 : 1) * (D.DIFF[this.diff].fastBoss ? 1.5 : 1);
+      // [v5.6] 예고: 스킬 1.2초 전에 보스가 기를 모은다(화면이 보스 쪽을 먼저 보여 주게 — 지침 3-6 예고 → 이동 → 변신 → 강조)
+      if (!b.charged && b.abT <= 1.2) { b.charged = true; this.emit('bossCharge', { boss: k }); }
       if (b.abT > 0) return;
-      const cand = this.towersList().filter(t => t.tower.tier < 6 && !t.warn);
-      cand.sort((a, c) => (c.trait === 'target') - (a.trait === 'target') || c.tower.tier - a.tower.tier);
+      b.charged = false;
+      // [v5.6 A안] 대상은 무작위(전: 가장 높은 단계부터) — 표적지(나쁜 땅) 칸만 먼저
+      const cand = this.towersList().filter(t => t.tower.tier < 6 && !t.warn).map(t => [t, this.r()]).sort((a, c) => a[1] - c[1]).map(x => x[0]);
+      cand.sort((a, c) => (c.trait === 'target') - (a.trait === 'target'));
       b.abT = this.bossDisrupt(k, cand);
       this.emit('bossSkill', { boss: k });
     }
@@ -905,7 +914,7 @@
         if (t.warn && this.t >= t.warn.until) {
           t.warn = null;
           if (t.tower) {
-            if (t.tower.tier <= 1) { t.tower = null; this.emit('destroyed', { i: t.i }); }
+            if (t.tower.tier <= 1) { t.stopUntil = this.t + 6; this.emit('warnStop', { i: t.i }); }   // [v5.6 A안] 철거 없음 — 1단계는 6초 멈춤(랜다2엔 철거가 없다)
             else { t.tower.tier--; this.emit('downgrade', { i: t.i, tier: t.tower.tier }); }
           }
         }
@@ -929,7 +938,9 @@
           if (this.spawnT <= 0) { this.spawnT += this.spawnEvery; this.spawnMonster(this.spawnQ.shift(), 0); }
         }
         const last = this.mode === 'conquest' && this.round >= ECON.rounds;
-        if (!last && this.roundT >= ECON.roundTime) this.startRound();
+        // [v5.6] 보스가 살아 있는 동안은 다음 라운드를 미룬다(보스 단독 · 최대 ECON.bossHold초 — 그 뒤엔 예전처럼 다음 라운드와 함께)
+        const hold = this.boss && this.boss.alive && this.bossT < ECON.bossHold;
+        if (!last && !hold && this.roundT >= ECON.roundTime) this.startRound();
       }
       // 몬스터 이동
       let weight = 0;

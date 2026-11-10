@@ -1,7 +1,7 @@
 // 소리 — Web Audio 실시간 합성(파일 없음). 효과음 + 칩튠 배경음(로비 · 전투 · 보스).
 // 나중에 파일 소리로 바꾸려면 같은 함수 이름으로 갈아끼우면 된다.
 (function (root) {
-  const BGM_VOL = 0.4;   // [v4.8] 배경음 크기(전 0.45). 곡별 크기는 파일에서 맞춤(tools/audio_master.py)
+  const BGM_VOL = 1;   // [v5.6] 곡 크기를 파일에 구워 넣음(평소 −31 · 보스 −27 · 로비 −32.5 LUFS) — 아이폰은 소리 크기(volume)를 못 바꿔 늘 1로 났음(전 0.4는 PC에만 먹었다)   // [v4.8] 배경음 크기(전 0.45). 곡별 크기는 파일에서 맞춤(tools/audio_master.py)
   class Audio {
     constructor() { this.ctx = null; this.on = true; this.musicOn = true; this.vol = 0.55; this.last = {}; this.bgm = null; }
     init() {
@@ -161,15 +161,21 @@
       }
       return true;
     }
+    // [v5.6] 두 곡 겹침 고침: 아이폰(사파리)은 a.volume을 바꿔도 늘 1이라 '0까지 줄이고 멈춤'이 끝나지 않아 앞 곡이 계속 났다
+    //   → 소리 크기를 못 바꾸는 기기는 바로 멈춤 · 다른 기기도 줄이기는 최대 0.75초 뒤 반드시 멈춤
+    volLocked() { if (this._vl == null) { try { const t = new window.Audio(); t.volume = 0.5; this._vl = Math.abs(t.volume - 0.5) > 0.01; } catch (e) { this._vl = false; } } return this._vl; }
     fade(a, to, pause, step) {
       clearInterval(a._fade);
-      a._fade = setInterval(() => { const d = to - a.volume; if (Math.abs(d) < Math.max(0.03, step || 0)) { a.volume = to; clearInterval(a._fade); if (pause && to === 0) a.pause(); } else a.volume = Math.max(0, Math.min(1, a.volume + Math.sign(d) * (step || 0.04))); }, 40);
+      if (this.volLocked()) { if (to === 0) a.pause(); else if (a.paused) { const p = a.play(); if (p && p.catch) p.catch(() => {}); } return; }   // 끄기 = 멈춤 · 켜기 = 재생
+      let n = 0; const cap = pause ? 12 : 140;   // 줄이며 멈추기는 최대 0.5초
+      a._fade = setInterval(() => { n++; const d = to - a.volume; if (Math.abs(d) < Math.max(0.03, step || 0) || n > cap) { try { a.volume = to; } catch (e) { /* 막힌 기기 */ } clearInterval(a._fade); if (pause && to === 0) a.pause(); } else a.volume = Math.max(0, Math.min(1, a.volume + Math.sign(d) * (step || 0.04))); }, 40);
     }
     musicSynth(kind) {
       if (!this.ctx || this.bgmKind === kind) return;
       this.bgmKind = kind;
       if (this.bgmTimer) clearInterval(this.bgmTimer);
-      if (!kind) { if (this.tracks) for (const k in this.tracks) this.fade(this.tracks[k], 0, true); return; }
+      if (this.tracks) for (const k in this.tracks) this.fade(this.tracks[k], 0, true);   // [v5.6] 합성음으로 바뀔 때 파일 곡이 남아 겹치지 않게
+      if (!kind) return;
       const S = SONGS[kind] || SONGS.battle;
       let step = 0, next = this.ctx.currentTime + 0.1;
       const spb = 60 / S.bpm / 4;

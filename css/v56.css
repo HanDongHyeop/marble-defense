@@ -1,0 +1,80 @@
+/* v5.6 작전 카드 등급 연출 — 사용자(2026-11-10): '등급이 높아질수록 카드 자체가 좋아 보여야 하는데 색만 다르고 번쩍 · 아우라가 없다'
+   등급 사다리(높을수록 하나씩 더함):
+     일반 = 은빛 틀 · 뒤집힐 때 작은 흰 빛
+     희귀 = 파란 틀 · 위 보석 · 뒤집힐 때 파란 번쩍 + 고리 + 알갱이 8 · 카드 밖 파란 아우라(숨쉬기)
+     영웅 = 보라 틀 · 네 모서리 보석 · 뒷면에서 보라 빛이 새고 흔들림(예고) · 번쩍 + 고리 + 알갱이 14 · 뒤 빛살 · 지나가는 빛
+     전설 = 금 무지개 틀(돎) · 금 모서리 장식 · 뒷면 금빛 + 두 번 흔들림 · 큰 금빛 번쩍 + 고리 두 겹 + 알갱이 24 · 큰 빛살 · 떠오르는 반짝이(계속) · 대박 소리
+   타이밍: --rv = 그 카드가 뒤집히는 순간(style.css의 덮개 벗겨짐과 같은 값) */
+.mbox:has(.cards) { overflow: visible; }
+.cards { align-items: stretch; }
+.cslot { --rv: calc(.6s + var(--k) * .22s); position: relative; flex: 1; display: flex; isolation: isolate; }
+.cslot > .card { flex: 1; z-index: 2; }
+.cslot > i { position: absolute; pointer-events: none; display: block; }
+
+/* 아우라(카드 밖) */
+.cslot > .aura { inset: 2px; border-radius: 18px; z-index: 0; opacity: 0; }
+.cslot.r > .aura { box-shadow: 0 0 22px 8px #4aa8ffcc, 0 0 50px 16px #4aa8ff55; }
+.cslot.e > .aura { box-shadow: 0 0 26px 10px #c070ffdd, 0 0 64px 22px #b05cff66; }
+.cslot.l > .aura { box-shadow: 0 0 30px 12px #ffd23aee, 0 0 80px 30px #ff8a1c77; }
+.cslot.r > .aura, .cslot.e > .aura, .cslot.l > .aura { animation: auraIn .45s ease-out forwards, auraBeat 1.5s ease-in-out infinite alternate; animation-delay: var(--rv), calc(var(--rv) + .45s); }
+@keyframes auraIn { from { opacity: 0; transform: scale(.6); } to { opacity: 1; transform: scale(1); } }
+@keyframes auraBeat { from { opacity: .7; transform: scale(.97); } to { opacity: 1; transform: scale(1.04); } }
+
+/* 뒤 빛살(영웅 · 전설) */
+.cslot > .rays { left: 50%; top: 36%; width: 440px; height: 440px; margin: -220px 0 0 -220px; z-index: 1; border-radius: 50%; opacity: 0;
+  -webkit-mask: radial-gradient(circle, #000 16%, transparent 64%); mask: radial-gradient(circle, #000 16%, transparent 64%); }
+.cslot.e > .rays { background: repeating-conic-gradient(#e0b0ff66 0 7deg, transparent 7deg 24deg); }
+.cslot.l > .rays { width: 560px; height: 560px; margin: -280px 0 0 -280px; background: repeating-conic-gradient(#fff2a0aa 0 8deg, transparent 8deg 20deg); }
+.cslot.e > .rays, .cslot.l > .rays { animation: raysIn .5s ease-out forwards, raySpin 12s linear infinite; animation-delay: var(--rv), 0s; }
+@keyframes raysIn { from { opacity: 0; } to { opacity: 1; } }
+
+/* 뒤집히는 순간 번쩍 */
+.cslot > .flash { inset: -34px; z-index: 3; border-radius: 50%; opacity: 0; background: radial-gradient(closest-side, #ffffff, var(--fl, #ffffff) 38%, transparent 72%); animation: flashOn .55s ease-out both; animation-delay: var(--rv); }
+.cslot.c > .flash { inset: 10px; --fl: #ffffff00; animation-name: flashSoft; }
+.cslot.r > .flash { --fl: #6ab8ffcc; }
+.cslot.e > .flash { --fl: #c070ffdd; }
+.cslot.l > .flash { inset: -70px; --fl: #ffd23aee; animation-duration: .8s; }
+@keyframes flashOn { 0% { opacity: 0; transform: scale(.4); } 16% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(1.2); } }
+@keyframes flashSoft { 0% { opacity: 0; } 20% { opacity: .45; } 100% { opacity: 0; } }
+
+/* 퍼지는 고리 */
+.cslot > .ring { left: 50%; top: 38%; width: 64px; height: 64px; margin: -32px 0 0 -32px; z-index: 3; border-radius: 50%; border: 5px solid var(--rc, #fff); opacity: 0; animation: ringOut .7s ease-out both; animation-delay: var(--rv); }
+.cslot.c > .ring { display: none; }
+.cslot.r > .ring { --rc: #9ad8ff; } .cslot.e > .ring { --rc: #e6b8ff; } .cslot.l > .ring { --rc: #fff2a0; border-width: 7px; }
+.cslot > .ring2 { animation-delay: calc(var(--rv) + .14s); }
+@keyframes ringOut { 0% { opacity: 1; transform: scale(.3); } 100% { opacity: 0; transform: scale(5.2); } }
+
+/* 튀는 알갱이(뒤집힐 때 한 번) */
+.cslot > .sp { left: 50%; top: 38%; width: 9px; height: 9px; margin: -4.5px; z-index: 4; background: var(--pc, #fff); border-radius: 2px; opacity: 0; animation: spOut .9s cubic-bezier(.2, .8, .3, 1) both; animation-delay: calc(var(--rv) + .03s); box-shadow: 0 0 6px var(--pc, #fff); }
+.cslot > .sp:nth-of-type(3n) { --pc: #ffffff; width: 6px; height: 6px; }
+.cslot.r > .sp { --pc: #9ad8ff; } .cslot.e > .sp { --pc: #e6b8ff; } .cslot.l > .sp { --pc: #ffd23a; width: 11px; height: 11px; }
+@keyframes spOut { 0% { opacity: 1; transform: translate(0, 0) rotate(45deg) scale(1.2); } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)) rotate(260deg) scale(.3); } }
+
+/* 전설: 떠오르는 반짝이(계속) */
+.cslot > .fl { bottom: 10%; left: var(--x); width: 10px; height: 10px; z-index: 4; opacity: 0; background: radial-gradient(circle, #fffbe0 0 30%, #ffd23a 40%, transparent 70%); animation: floatUp 2.2s ease-in infinite; animation-delay: calc(var(--rv) + var(--d)); }
+@keyframes floatUp { 0% { opacity: 0; transform: translateY(0) scale(.6); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(-260px) scale(1.1); } }
+
+/* 뒷면 예고: 영웅 · 전설은 뒤집히기 전부터 색 빛이 새고 흔들림 */
+.cslot.e .card .cover { box-shadow: inset 0 0 0 3px #d090ff, inset 0 0 34px #b05cffcc; }
+.cslot.l .card .cover { box-shadow: inset 0 0 0 4px #ffe28a, inset 0 0 44px #ffc21cee; }
+.cslot.e { animation: preShake .28s linear 1 both; animation-delay: calc(var(--rv) - .34s); }
+.cslot.l { animation: preShake .28s linear 2 both; animation-delay: calc(var(--rv) - .6s); }
+@keyframes preShake { 0%, 100% { transform: translate(0, 0) rotate(0); } 25% { transform: translate(-4px, -2px) rotate(-1.5deg); } 50% { transform: translate(3px, 1px) rotate(1.2deg); } 75% { transform: translate(-2px, 2px) rotate(-.6deg); } }
+
+/* 틀 장식 */
+.card .orn { position: absolute; inset: 0; z-index: 2; pointer-events: none; display: block; }
+.card.r .orn { background: radial-gradient(circle at 50% 44px, #ffffff 0 3px, #9ad8ff 4px 8px, #1d4a8a 9px 10px, transparent 11px); }
+.card.e .orn, .card.l .orn { --oc: #e6b8ff; --od: #5a1a9a;
+  background: radial-gradient(circle at 14px 14px, #fff 0 2.5px, var(--oc) 3.5px 7px, var(--od) 8px 9px, transparent 10px),
+              radial-gradient(circle at calc(100% - 14px) 14px, #fff 0 2.5px, var(--oc) 3.5px 7px, var(--od) 8px 9px, transparent 10px),
+              radial-gradient(circle at 14px calc(100% - 14px), #fff 0 2.5px, var(--oc) 3.5px 7px, var(--od) 8px 9px, transparent 10px),
+              radial-gradient(circle at calc(100% - 14px) calc(100% - 14px), #fff 0 2.5px, var(--oc) 3.5px 7px, var(--od) 8px 9px, transparent 10px); }
+.card.l .orn { --oc: #ffe28a; --od: #8a4a0a; }
+.card.e { box-shadow: 0 10px 24px #000a, 0 0 32px #b05cff77, inset 0 0 26px #b05cff55; }
+.card.l { box-shadow: 0 10px 24px #000a, 0 0 40px #ffc21caa, inset 0 0 30px #ffc21c55; }
+/* 등급 이름표: 영웅 · 전설은 반짝임이 지나감 */
+.card.e .g, .card.l .g { background-size: 200% 100%; }
+.card.l .g { background: linear-gradient(100deg, var(--g1) 0 35%, #ffffff 45%, var(--g1) 55% 100%) 0 0 / 250% 100%, linear-gradient(var(--g1), var(--g2)); animation: tagShine 2s 1.4s linear infinite; }
+@keyframes tagShine { from { background-position: 150% 0, 0 0; } to { background-position: -100% 0, 0 0; } }
+
+@media (prefers-reduced-motion: reduce) { .cslot, .cslot > i { animation-duration: .01s !important; animation-iteration-count: 1 !important; } }

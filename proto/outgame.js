@@ -90,7 +90,7 @@
     music() {
       if (!this.unlocked) return;
       const want = S.set.bgm && !ui.inGame && !document.hidden;
-      if (!this.bgm) { this.bgm = new Audio(SFXD + 'bgm_lobby.mp3'); this.bgm.loop = true; this.bgm.volume = 0.32; }
+      if (!this.bgm) { this.bgm = new Audio(SFXD + 'bgm_lobby.mp3'); this.bgm.loop = true; this.bgm.volume = 1; }   // [v5.6] 크기는 파일에 구움(아이폰은 volume이 안 먹음)
       if (want) { const pr = this.bgm.play(); if (pr && pr.catch) pr.catch(() => {}); } else this.bgm.pause();
     },
     play(n, vol) { if (!this.unlocked || !S.set.sfx) return; try { const a = new Audio(SFXD + n + '.mp3'); a.volume = vol == null ? 0.6 : vol; const pr = a.play(); if (pr && pr.catch) pr.catch(() => {}); } catch (e) { /* 소리 없음 */ } },
@@ -802,7 +802,7 @@
     settings() {
       open({ type: 'sheet', title: '설정', body: () => `<div class="setlist setgrid">${[['sfx', '효과음'], ['bgm', '배경음'], ['haptic', '진동', '안드로이드 · 아이폰은 단추만'], ['dmg', '피해 숫자'], ['shake', '화면 흔들림']].map(([k, n, sub]) => B('tog', k, 'setrow', `<span class="k">${n}${sub ? `<small>${sub}</small>` : ''}</span><span class="tog ${S.set[k] ? '' : 'off'}"></span>`)).join('')}</div>
         <div class="sec-t">계정</div><div class="devgrid">${B('go', 'profile', 'btn sec', '내 정보')}${B('export', null, 'btn sec', '옮기기 코드')}${B('resetAsk', null, 'btn red', '처음 상태로')}${B('dev', null, 'btn sec', '🛠 개발 도구')}</div>
-        <div class="note" style="margin-top:14px">시안 v5.5 · 마블 디펜스</div>` });
+        <div class="note" style="margin-top:14px">시안 v5.6 · 마블 디펜스</div>` });
     },
     // [v5.4] 개발 도구(나중에 뺄 것): 포탑 열고 닫기 · 재화 · 장 · 패스 · 출석 · 다음 시작 6·6
     dev() {

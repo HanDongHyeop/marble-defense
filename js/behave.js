@@ -30,8 +30,9 @@
       fk(key) { return !!(this.meta.fork && this.meta.fork[key]); },
       awakened(type) {
         let has4 = false;
-        for (const t of this.tiles) if (t.tower && t.tower.type === type) { if (t.tower.tier >= 6) return true; if (t.tower.tier >= 4) has4 = true; }
-        return has4 && this.has('awaken') && this.awakenType === type;
+        const pre = this.has('awaken') && (this.awakenTypes || [this.awakenType]).includes(type), need = pre ? 3 : 4;   // [v5.6] 각성 맛보기: 두 종류 · 3단계부터(전: 한 종류 · 4단계)
+        for (const t of this.tiles) if (t.tower && t.tower.type === type) { if (t.tower.tier >= 6) return true; if (t.tower.tier >= need) has4 = true; }
+        return has4 && pre;
       },
       addFreeze(m, n) {
         if (!m.alive) return;
@@ -72,7 +73,7 @@
         opts = opts || {};
         const st = src && src.type;
         let react = null;
-        const rk = this.has('elemental') ? 2 : 1;
+        const rk = this.has('elemental') ? 3 : 1;
         if (!opts.noReact && st) {
           if (m.frz > 0 && st === 'fire') { amt *= 3 * rk * (this.fk('thermal') ? 1.5 : 1); m.frz = 0; react = 'thermal'; }
           else if (m.psn > 0 && st === 'fire') {
@@ -165,11 +166,11 @@
         let m = (T.atk + (tw.bonusAtk || 0)) * (1 + ECON.upgStep * (this.upg[tw.type] || 0));
         if (t.trait === 'arms') m *= 1.3;
         const fort = t.zone >= 0 && (this.zoneFull(t.zone) || (this.awakened('beacon') && ZONE_TILES[t.zone].some(j => this.tiles[j].tower && this.tiles[j].tower.type === 'beacon')));
-        if (fort) m *= 1 + (this.has('fortx2') ? 1 : 0.5) * (D.DIFF[this.diff].fortHalf ? 0.5 : 1);
+        if (fort) m *= 1 + (this.has('fortx2') ? 1.25 : 0.5) * (D.DIFF[this.diff].fortHalf ? 0.5 : 1);
         if (this.has('sharp') && tw.tier <= 3) m *= 1.25;
         if (this.focusType === tw.type) m *= 1.4;
-        if (this.has('lonely') && this.towersList().length <= 8) m *= 1.5;
-        if (this.has('deal')) m *= 1.5;
+        if (this.has('lonely') && this.towersList().length <= 12) m *= 1.6;
+        if (this.has('deal')) m *= 1.5; if (this.has('awaken') && (this.awakenTypes || []).includes(tw.type)) m *= 1.3;   // [v5.6] 각성 맛보기 두 종류 피해 +30%
         if (tw.type === 'tyrant' && this.countType('tyrant') === 1) m *= 1.8;   // [v4.5 2 → 1.8: 심연 덱이 가장 강했음]
         if (tw.type === 'combo') m *= 1 + 0.04 * Math.min(this.sp('combo', 'comboCap') ? 40 : 30, this.comboStack);   // [조정: 5% → 3%, 30까지]
         if (tw.type === 'greed') m *= 1 + Math.min(0.4, Math.floor(this.gold / 15) * 0.05);   // [v4.6 금화 단위 1/8: 100 → 15]   // [v4.0 조정: 최대 +50 → +40%]
@@ -427,7 +428,7 @@
         let k = ECON.strikeMul * mul * (1 + 0.1 * this.combo);
         if (this.tiles[i].trait === 'holy') k *= 2;
         if (this.pawnId === 'dog') k *= 1.35;   // [v4.0 조정: 1.3 → 1.35]
-        if (this.has('strikex2')) k *= 2;
+        if (this.has('strikex2')) { k *= 3; tw.rushUntil = this.t + 6; }   // [v5.6] 출동 대장: 3배 + 출동한 포탑 6초 공속 +50%
         if (this.sp(tw.type, 'strike')) k *= 1.5;
         const per = this.dmgMul(i) * TIER.dmg[tw.tier] * Math.max(1, TIER.shots[tw.tier]) * k, src = this.srcOf(i);
         this.stats.strikes++;
@@ -531,13 +532,14 @@
       // ---------------------------------------------------------- 보스 교란(6종)
       bossDisrupt(k, cand) {
         const pick = n => cand.slice(0, n);
-        if (k === 'destroyer') { if (this.shield > 0 && cand.length) { this.shield--; this.emit('shield'); return 15; } for (const t of pick(2)) { t.warn = { until: this.t + 15 }; this.emit('warn', { i: t.i }); } return 15; }
-        if (k === 'ghost') { const tg = cand.filter(t => t.trait === 'target').concat(this.towersList().filter(t => t.tower.tier < 6).sort(() => this.r() - 0.5)).filter((t, n, a) => a.indexOf(t) === n).slice(0, 3); for (const t of tg) { t.stopUntil = this.t + 6; this.emit('stop', { i: t.i }); } return 12; }
-        if (this.shield > 0 && cand.length) { this.shield--; this.emit('shield'); return 15; }
-        if (k === 'witch') { const t = cand[0]; if (t) { const others = this.deck.filter(d => d !== t.tower.type && d !== 'prism'); if (others.length) { t.tower.type = this.pickOne(others); this.emit('hexed', { i: t.i }); } } return 15; }
-        if (k === 'magician') { const t = cand.find(c => c.tower.type !== 'prism'); if (t) { t.tower.type = 'prism'; this.emit('hexed', { i: t.i, prism: 1 }); } return 15; }
-        if (k === 'quake') { const ts = this.towersList().filter(t => t.tower.tier < 6).sort(() => this.r() - 0.5).slice(0, 2); if (ts.length === 2) { const tmp = ts[0].tower; ts[0].tower = ts[1].tower; ts[1].tower = tmp; this.emit('quake', { a: ts[0].i, b: ts[1].i }); } return 15; }
-        if (k === 'swindler') { const t = cand.find(c => !c.occ); if (t && this.boss) { t.occ = { mon: this.boss.id, ransom: 0 }; this.emit('occupy', { i: t.i }); } return 15; }
+        if (k === 'destroyer') { if (this.shield > 0 && cand.length) { this.shield--; this.emit('shield', { by: k }); return 15; } for (const t of pick(2)) { t.warn = { until: this.t + 15 }; this.emit('warn', { i: t.i, by: k }); } return 15; }
+        if (k === 'ghost') { const tg = cand.filter(t => t.trait === 'target').concat(this.towersList().filter(t => t.tower.tier < 6).sort(() => this.r() - 0.5)).filter((t, n, a) => a.indexOf(t) === n).slice(0, 3); for (const t of tg) { t.stopUntil = this.t + 6; this.emit('stop', { i: t.i, by: k }); } return 12; }
+        // [v5.6 A안] 마술사 = 보상형(랜다2 조커처럼): 가장 낮은 단계 포탑 1개를 같은 단계 프리즘으로 — 합치기 열쇠. 방패가 막지 않음
+        if (k === 'magician') { const t = cand.filter(c => c.tower.type !== 'prism').sort((a, c) => a.tower.tier - c.tower.tier)[0]; if (t) { const from = t.tower.type; t.tower.type = 'prism'; this.emit('hexed', { i: t.i, prism: 1, from, by: k }); } return 15; }
+        if (this.shield > 0 && cand.length) { this.shield--; this.emit('shield', { by: k }); return 15; }
+        if (k === 'witch') { const t = cand[0]; if (t) { const others = this.deck.filter(d => d !== t.tower.type && d !== 'prism'); if (others.length) { const from = t.tower.type; t.tower.type = this.pickOne(others); this.emit('hexed', { i: t.i, from, by: k }); } } return 15; }
+        if (k === 'quake') { const ts = this.towersList().filter(t => t.tower.tier < 6).sort(() => this.r() - 0.5).slice(0, 2); if (ts.length === 2) { const tmp = ts[0].tower; ts[0].tower = ts[1].tower; ts[1].tower = tmp; this.emit('quake', { a: ts[0].i, b: ts[1].i, by: k }); } return 15; }
+        if (k === 'swindler') { const t = cand.find(c => !c.occ); if (t && this.boss) { t.occ = { mon: this.boss.id, ransom: 0 }; this.emit('occupy', { i: t.i, by: k }); } return 15; }
         return 15;
       },
     });

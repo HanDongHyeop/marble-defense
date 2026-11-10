@@ -61,9 +61,9 @@
   // ------------------------------------------------------------ 리본 · 테두리
   R.ribbon = function (title, sub, good, icon, o) {
     const S = this.v47(); o = o || {};
-    const r = { title, sub: sub || '', good, icon, t0: this.time, dur: o.dur || 1.7, col: o.col };
-    // 한 번에 하나 — 앞 리본이 있으면 앞 리본을 짧게 줄이고 줄 세움(최대 3)
-    if (S.ribbons.length) { const a = S.ribbons[0]; a.dur = Math.min(a.dur, Math.max(0.75, this.time - a.t0 + 0.25)); }
+    const r = { title, sub: sub || '', good, icon, t0: this.time, dur: o.dur || 1.7, col: o.col, pri: o.pri };
+    // 한 번에 하나 — 앞 리본이 있으면 앞 리본을 짧게 줄이고 줄 세움(최대 3). [v5.6] 보스 스킬 알림(pri)은 2초는 다 보여 줌
+    if (S.ribbons.length) { const a = S.ribbons[0]; a.dur = Math.min(a.dur, Math.max(a.pri ? 2 : 0.75, this.time - a.t0 + 0.25)); }
     S.ribbons.push(r); if (S.ribbons.length > 3) S.ribbons.splice(1, 1);
     this.edgeGlow(good);
   };
