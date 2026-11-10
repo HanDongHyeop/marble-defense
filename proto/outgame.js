@@ -802,7 +802,7 @@
     settings() {
       open({ type: 'sheet', title: '설정', body: () => `<div class="setlist setgrid">${[['sfx', '효과음'], ['bgm', '배경음'], ['haptic', '진동', '안드로이드 · 아이폰은 단추만'], ['dmg', '피해 숫자'], ['shake', '화면 흔들림']].map(([k, n, sub]) => B('tog', k, 'setrow', `<span class="k">${n}${sub ? `<small>${sub}</small>` : ''}</span><span class="tog ${S.set[k] ? '' : 'off'}"></span>`)).join('')}</div>
         <div class="sec-t">계정</div><div class="devgrid">${B('go', 'profile', 'btn sec', '내 정보')}${B('export', null, 'btn sec', '옮기기 코드')}${B('resetAsk', null, 'btn red', '처음 상태로')}${B('dev', null, 'btn sec', '🛠 개발 도구')}</div>
-        <div class="note" style="margin-top:14px">시안 v5.4 · 마블 디펜스</div>` });
+        <div class="note" style="margin-top:14px">시안 v5.5 · 마블 디펜스</div>` });
     },
     // [v5.4] 개발 도구(나중에 뺄 것): 포탑 열고 닫기 · 재화 · 장 · 패스 · 출석 · 다음 시작 6·6
     dev() {
