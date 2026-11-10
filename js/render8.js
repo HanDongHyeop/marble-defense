@@ -140,8 +140,9 @@
     for (let k = 0; k < 10; k++) { const a = k / 10 * TAU; this.part({ x: src[0], y: src[1] - 10, vx: Math.cos(a) * 150, vy: Math.sin(a) * 70 - 60, life: 0.5, size: 4, col: good ? '#ffe28a' : '#c890ff', kind: good ? 'star' : 'puff', vr: 6, drag: 2 }); }
     this.ring(src[0], src[1], 52, good ? GOLD : '#b07cff', 0.55, 6);
     // 강조: 리본 + 테두리
-    const title = (lucky ? '행운! ' : e.from === 'key' ? '' : '') + F.name + (e.refresh ? ' 연장' : '');
-    this.ribbon(title, F.desc + ' · ' + (e.dur || F.dur) + '초', good, ICON[e.k]);
+    // [v5.5] 제목 = 무슨 일이 일어나는지 그대로(몬스터 이동 속도 감소) · 아래 = 숫자 · 시간 · 땅 이름
+    const title = (lucky ? '행운! ' : '') + (F.plain || F.name) + (e.refresh ? ' 연장' : '');
+    this.ribbon(title, (F.amt ? F.amt + ' · ' : '') + (e.dur || F.dur) + '초 · ' + F.name, good, ICON[e.k]);
     if (A) { if (good) { A.good(); A.tone && A.tone({ f: 988, d: 0.18, v: 0.06, delay: 0.16, wave: 'triangle' }); } else { A.bad(); A.tone && A.tone({ f: 160, f2: 90, d: 0.4, v: 0.12, delay: 0.1, wave: 'sawtooth' }); } }
   };
   // 효과 줄에서 이 기운이 들어갈 자리

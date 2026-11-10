@@ -13,7 +13,7 @@
   const og = (k, cls) => `<img class="${cls == null ? 'ico' : cls}" src="${PIMG}og_${k}.png" alt="">`;
   const coin = cls => `<img class="${cls == null ? 'ico' : cls}" src="${IMG}i_coin.png" alt="">`;
   const tw = (k, t) => `${IMG}t_${k}_${t || 1}.png`;
-  const FAMC = { 원소: '#ff7a3d', 기계: '#ffb02e', 비전: '#a77bff', 성역: '#f0cc5a', 심연: '#ff4a52', 조커: '#e0d0ff' };
+  const FAMC = D.FAMC;   // [v5.5] 계열 색은 본편 data.js 한 곳에서
   const fc = k => FAMC[D.TOWERS[k].fam] || '#aaa';
   const tname = k => D.TOWERS[k].name;
   const PIPS = { 1: [5], 2: [1, 9], 3: [1, 5, 9], 4: [1, 3, 7, 9], 5: [1, 3, 5, 7, 9], 6: [1, 3, 4, 6, 7, 9] };
@@ -373,34 +373,34 @@
           <div class="hl">보석 <b>500</b> · 골드 <b>3만</b> · 코어 <b>30</b><br>+ 황금 주사위 스킨</div>
           <div class="hbuy">${st ? '<span class="btn small off">구매 완료 ✔</span>' : `<span class="btn gold">₩4,900</span><span class="was">₩16,500</span>`}</div></div>
         ${st ? '' : '<span class="off">-70%<small>할인</small></span>'}<span class="timer">⏱ 2일 13시간 남음</span>`)}
-      <div class="sec-t">오늘의 특가 <span class="r">매일 오전 9시 새로 고침</span></div>
+      <div class="sec-t s-deal">오늘의 특가 <span class="r">매일 오전 9시 새로 고침</span></div>
       <div class="deals">
         ${card('freeGift', null, 'deal' + (S.shop.free ? ' sold' : ' hot') + (ui.flash === 'free' ? ' flash' : ''), SI('gift'), '골드 1,000<small>매일 무료</small>', S.shop.free ? '<span class="pr">받음 ✔</span>' : `<span class="pr ad">${og('ad')} 받기</span>`, S.shop.free ? null : ['무료', 'blue'])}
         ${card('buy', 'gold3k', 'gold' + (S.shop.goldBuy >= 3 ? ' sold' : ''), SI('gold2'), '골드 3,000', S.shop.goldBuy >= 3 ? '<span class="pr">오늘 끝</span>' : gemP(30), [`${3 - S.shop.goldBuy}/3`, ''])}
         ${card('buy', 'core5', 'deal' + (S.shop.coreBuy ? ' sold' : ''), PIMG + 'og_core.png', '코어 5', S.shop.coreBuy ? '<span class="pr">오늘 끝</span>' : gemP(40), ['하루 1번', 'gold'])}
       </div>
-      <div class="sec-t" id="gems">보석 <span class="r">첫 구매는 2배</span></div>
+      <div class="sec-t s-gem" id="gems">보석 <span class="r">첫 구매는 2배</span></div>
       <div class="gemgrid">
-        ${card('buy', 'gem80', fl, SI('gem1'), '보석 80', won(1200))}
-        ${card('buy', 'gem500', fl, SI('gem2'), '보석 500<small>+50 보너스</small>', won(6500), ['첫 구매 ×2', ''])}
-        ${card('buy', 'gem1200', 'hot' + fl, SI('gem3'), '보석 1,200<small>+200 보너스</small>', won(15000), ['인기', ''])}
-        ${card('buy', 'gem2500', fl, SI('gem4'), '보석 2,500<small>+500 보너스</small>', won(29000))}
-        ${card('buy', 'gem6500', fl, SI('gem5'), '보석 6,500<small>+1,500 보너스</small>', won(69000), ['최고 가치', 'gold'])}
-        ${card('buy', 'gem14000', fl, SI('gem6'), '보석 14,000<small>+4,000 보너스</small>', won(129000), null, '+40%')}
+        ${card('buy', 'gem80', 'gem t1' + fl, SI('gem1'), '보석 80', won(1200))}
+        ${card('buy', 'gem500', 'gem t2' + fl, SI('gem2'), '보석 500<small>+50 보너스</small>', won(6500), ['첫 구매 ×2', ''])}
+        ${card('buy', 'gem1200', 'gem t3 hot' + fl, SI('gem3'), '보석 1,200<small>+200 보너스</small>', won(15000), ['인기', ''])}
+        ${card('buy', 'gem2500', 'gem t4' + fl, SI('gem4'), '보석 2,500<small>+500 보너스</small>', won(29000))}
+        ${card('buy', 'gem6500', 'gem t5' + fl, SI('gem5'), '보석 6,500<small>+1,500 보너스</small>', won(69000), ['최고 가치', 'gold'])}
+        ${card('buy', 'gem14000', 'gem t6' + fl, SI('gem6'), '보석 14,000<small>+4,000 보너스</small>', won(129000), null, '+40%')}
       </div>
-      <div class="sec-t">골드</div>
+      <div class="sec-t s-gold">골드</div>
       <div class="gemgrid">
-        ${card('buy', 'gold12k', 'gold', SI('gold1'), '골드 12,000', gemP(100))}
-        ${card('buy', 'gold40k', 'gold', SI('gold2'), '골드 40,000<small>+10%</small>', gemP(300), ['인기', ''])}
-        ${card('buy', 'gold150k', 'gold', SI('gold3'), '골드 150,000<small>+25%</small>', gemP(1000), null, '+25%')}
+        ${card('buy', 'gold12k', 'gold t1', SI('gold1'), '골드 12,000', gemP(100))}
+        ${card('buy', 'gold40k', 'gold t3', SI('gold2'), '골드 40,000<small>+10%</small>', gemP(300), ['인기', ''])}
+        ${card('buy', 'gold150k', 'gold t5', SI('gold3'), '골드 150,000<small>+25%</small>', gemP(1000), null, '+25%')}
       </div>
       <div class="sec-t">후원 회원</div>
       ${B('buy', 'vip', 'vipcard', `<img src="${SI('vip')}" alt=""><div class="tx"><b>후원 회원 · 30일</b>판 보상 +50% · 매일 보석 20<br>패스 별 +20% · 광고 없이 '오늘의 무료'</div><span class="btn ${S.shop.vip ? 'off' : 'gold'} small">${S.shop.vip ? '이용 중' : '₩5,900'}</span>`)}
-      <div class="sec-t">꾸미기 · 편의 <span class="r">이번 주</span></div>
+      <div class="sec-t s-deco">꾸미기 · 편의 <span class="r">이번 주</span></div>
       <div class="gemgrid">
-        ${B('buy', 'jelly', 'sitem deal' + (jelly ? ' sold' : ''), `<div class="pic" style="display:flex;align-items:center;justify-content:center;gap:6px">${isoDie(6, 'jelly')}${isoDie(2, 'jelly')}</div><div class="am">젤리 주사위</div>${jelly ? '<span class="pr">보유 ✔</span>' : gemP(300)}`)}
-        ${B('buy', 'cat', 'sitem deal' + (cat ? ' sold' : ''), `<img class="pic" src="${IMG}p_cat.png" alt="" style="height:110px"><div class="am">보라 말</div>${cat ? '<span class="pr">보유 ✔</span>' : gemP(200)}`)}
-        ${B('buy', 'slot3', 'sitem deal' + (S.slot3 ? ' sold' : ''), `<div class="pic" style="display:flex;align-items:flex-end;justify-content:center">${['fire', 'bolt', 'light'].map(q => `<img src="${tw(q, 3)}" style="width:52px;height:80px;object-fit:contain" alt="">`).join('')}</div><div class="am">덱 칸 3 열기</div>${S.slot3 ? '<span class="pr">열림 ✔</span>' : gemP(100)}`)}
+        ${B('buy', 'jelly', 'sitem deco t2' + (jelly ? ' sold' : ''), `<div class="pic" style="display:flex;align-items:center;justify-content:center;gap:6px">${isoDie(6, 'jelly')}${isoDie(2, 'jelly')}</div><div class="am">젤리 주사위</div>${jelly ? '<span class="pr">보유 ✔</span>' : gemP(300)}`)}
+        ${B('buy', 'cat', 'sitem deco t2' + (cat ? ' sold' : ''), `<img class="pic" src="${IMG}p_cat.png" alt="" style="height:110px"><div class="am">보라 말</div>${cat ? '<span class="pr">보유 ✔</span>' : gemP(200)}`)}
+        ${B('buy', 'slot3', 'sitem deco t2' + (S.slot3 ? ' sold' : ''), `<div class="pic" style="display:flex;align-items:flex-end;justify-content:center">${['fire', 'bolt', 'light'].map(q => `<img src="${tw(q, 3)}" style="width:52px;height:80px;object-fit:contain" alt="">`).join('')}</div><div class="am">덱 칸 3 열기</div>${S.slot3 ? '<span class="pr">열림 ✔</span>' : gemP(100)}`)}
       </div>
       <div class="shopfoot">시안에서는 실제 결제가 없어요 · 확률로 뽑는 상품은 팔지 않아요</div>
     </div>${tabs('shop')}`;

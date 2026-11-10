@@ -1,6 +1,6 @@
 // 화면 위 글자 · 버튼(DOM) + 입력(누르기 · 끌기 · 칸 고르기) + 창(로비 · 카드 · 결과 · 멈춤)
 (function (root) {
-  const DEX_FAMS = [['원소', '#ff8a3a', '불 · 얼음 · 독'], ['기계', '#b8c0c8', '총 · 레일 · 채굴'], ['비전', '#b58cff', '번개 · 소환 · 콤보'], ['성역', '#ffe48a', '빛 · 봉화 · 성장'], ['심연', '#ff5a5a', '폭군 · 부식 · 탐욕'], ['조커', '#e0d0ff', '무엇과도 합침']];
+  const DEX_FAMS = [['원소', '#ff6a3d', '불 · 얼음 · 독'], ['기계', '#38c4ff', '총 · 레일 · 채굴'], ['비전', '#b58cff', '번개 · 소환 · 콤보'], ['성역', '#ffd84a', '빛 · 봉화 · 성장'], ['심연', '#ff3d8a', '폭군 · 부식 · 탐욕'], ['조커', '#e0d0ff', '무엇과도 합침']];
   const D = root.DATA, G = root.GEOM;
   const $ = id => document.getElementById(id);
   const fmt = n => Math.floor(n).toLocaleString('ko-KR');
@@ -137,18 +137,18 @@
       }
       if (R.drag) {
         const d = R.drag; d.fx = x + d.offX; d.fy = y + d.offY;
-        // 끄는 포탑 그림과 대상 포탑 그림이 50% 이상 겹치면 대상
-        const me = R.towerRect(g, d.from), w = me.w, h = me.h * 0.8;
-        const gx0 = d.fx - w / 2, gy0 = d.fy - h;
-        let best = null, bo = 0;
+        // [v5.5] 합치기 대상 = 놓을 자리(든 포탑 발밑)에서 가장 가까운 '합칠 수 있는' 포탑, 72px 안이면 됨(사용자: '어긋나게 놔도 합쳐지게')
+        //   전엔 그림이 50% 이상 겹쳐야 했음 → 이웃 칸 간격이 약 50px라 1.4칸 거리까지 너그럽게. 합칠 수 없는 포탑 위(34px 안)에 놓으면 '안 됨' 진동
+        const MERGE_R = 72;
+        let best = null, bd = MERGE_R, any = 1e9;
         for (const t of g.tiles) {
           if (!t.tower || t.i === d.from) continue;
-          const tr = R.towerRect(g, t.i), tw2 = tr.w, th = tr.h * 0.8, tx0 = tr.cx - tw2 / 2, ty0 = tr.cy - th;
-          const ix = Math.max(0, Math.min(gx0 + w, tx0 + tw2) - Math.max(gx0, tx0)), iy = Math.max(0, Math.min(gy0 + h, ty0 + th) - Math.max(gy0, ty0));
-          const ov = ix * iy / (w * h);
-          if (ov > bo) { bo = ov; best = t.i; }
+          const [tx, ty] = G.tiles[t.i].tower, dd = Math.hypot(tx - d.fx, ty - d.fy);
+          any = Math.min(any, dd);
+          if (dd < bd && g.canMerge(d.from, t.i)) { bd = dd; best = t.i; }
         }
-        const tg0 = d.target; d.target = bo >= 0.5 && g.canMerge(d.from, best) ? best : null;
+        const bo = any < 34 ? 1 : 0;
+        const tg0 = d.target; d.target = best;
         if (d.target != null && d.target !== tg0 && root.HAPTIC) root.HAPTIC.play('select');   // [v4.8] 합칠 자리에 닿는 순간
         d.overlap = bo; d.near = best;
         const cb = $('cmdBtn').getBoundingClientRect(), k = $('stage').getBoundingClientRect().width / 720;

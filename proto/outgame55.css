@@ -1,0 +1,113 @@
+/* v5.5 — 사용자 피드백 반영
+   1) 덱: 포탑 계열이 한눈에(카드 전체 = 계열 색 · 포탑 뒤 큰 계열 빛 · 이름 띠 = 계열 색)
+   2) 상점: 보석(루비) · 골드 · 특가 · 꾸미기 색을 가르고, 비싼 상품일수록 빛 · 반짝임 · 광선
+   3) 성장: 초록 바탕은 유지하되 카드 · 줄은 계열 색과 남색 계열로 섞어 '초록 일색'을 풂
+   계열 색 표 = js/data.js FAMC (원소 주황 · 기계 하늘 · 비전 보라 · 성역 노랑 · 심연 진분홍) */
+
+/* ======================================================= 1. 덱 카드: 계열 색 입히기 */
+.tcard, .ecard {
+  background:
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--fc) 70%, transparent) 0, color-mix(in srgb, var(--fc) 26%, transparent) 36%, transparent 60%),
+    linear-gradient(color-mix(in srgb, var(--fc) 46%, #1a1640), color-mix(in srgb, var(--fc) 20%, #120e2a));
+  box-shadow: 0 6px 12px rgba(10,10,40,.45), 0 0 12px color-mix(in srgb, var(--fc) 30%, transparent), inset 0 1px 0 rgba(255,255,255,.3);
+}
+/* 이름 · 특성 띠 = 계열 색(글씨는 흰 + 진한 그림자로 어느 색 위에서나 읽힘) */
+.tcard::after, .ecard::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; top: auto; height: 50px; border-radius: 0; z-index: 0;
+  background: linear-gradient(color-mix(in srgb, var(--fc) 92%, #fff 8%), color-mix(in srgb, var(--fc) 62%, #000 30%));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.45);
+}
+.tcard::before { display: none; }
+.tcard img, .ecard img { position: relative; z-index: 1; filter: drop-shadow(0 5px 4px rgba(0,0,0,.5)); }
+.tcard .nm, .tcard .tl, .ecard b, .ecard .tl { position: relative; z-index: 1; color: #fff; text-shadow: 0 1px 0 rgba(0,0,0,.75), 0 0 6px rgba(0,0,0,.55); }
+.tcard .tl, .ecard .tl { color: rgba(255,255,255,.92); font-size: 15px; }
+.ecard .slotn { z-index: 2; }
+.tcard .chk, .tcard .lk { z-index: 2; }
+/* 덱에 든 포탑 = 금빛 + ✔(계열 색은 그대로) */
+.tcard.on { background:
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--fc) 80%, transparent) 0, color-mix(in srgb, var(--fc) 30%, transparent) 38%, transparent 62%),
+    linear-gradient(color-mix(in srgb, var(--fc) 56%, #1a1640), color-mix(in srgb, var(--fc) 26%, #120e2a));
+  box-shadow: 0 6px 12px rgba(10,10,40,.45), 0 0 22px rgba(255,210,58,.75), inset 0 1px 0 rgba(255,255,255,.35); filter: brightness(1.08); }
+/* 잠김 = 회색(계열 색은 띠에만 흐리게) */
+.tcard.lock { background: linear-gradient(#5e5e6c, #4c4c58); box-shadow: inset 0 3px 10px rgba(0,0,0,.35), 0 2px 4px rgba(10,10,40,.3); }
+.tcard.lock::after { background: linear-gradient(color-mix(in srgb, var(--fc) 35%, #55556a), color-mix(in srgb, var(--fc) 20%, #3a3a48)); }
+.tcard.lock.can { background: linear-gradient(#6c6c78, #585864); }
+.ecard::after { left: 0; right: 0; height: 52px; }
+.equip.swap .ecard { box-shadow: 0 0 18px #5fe06a, 0 6px 12px rgba(0,0,0,.4); }
+/* 도감(수집) 카드도 같은 규칙 */
+.towergrid .tcard .tl { font-size: 15px; }
+
+/* ======================================================= 3. 성장: 초록 바탕 + 계열 색 카드 + 남색 줄 */
+.famtower {
+  background:
+    radial-gradient(circle at 50% 52%, color-mix(in srgb, var(--fc) 72%, transparent) 0, color-mix(in srgb, var(--fc) 26%, transparent) 36%, transparent 62%),
+    linear-gradient(color-mix(in srgb, var(--fc) 46%, #16233a), color-mix(in srgb, var(--fc) 20%, #0f1828));
+  box-shadow: 0 6px 14px rgba(0,0,0,.4), 0 0 12px color-mix(in srgb, var(--fc) 30%, transparent), inset 0 1px 0 rgba(255,255,255,.25);
+}
+.famtower::before { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 50px; background: linear-gradient(color-mix(in srgb, var(--fc) 92%, #fff 8%), color-mix(in srgb, var(--fc) 62%, #000 30%)); box-shadow: inset 0 1px 0 rgba(255,255,255,.45); }
+.famtower img, .famtower b, .famtower small { position: relative; z-index: 1; }
+.famtower b { color: #fff; text-shadow: 0 1px 0 rgba(0,0,0,.75), 0 0 6px rgba(0,0,0,.55); }
+.famtower small { color: rgba(255,255,255,.92); text-shadow: 0 1px 0 rgba(0,0,0,.7); font-size: 15px; }
+.famtower.lock { background: linear-gradient(#4a4e5a, #363a46); }
+.famtower.lock::before { background: linear-gradient(color-mix(in srgb, var(--fc) 35%, #55556a), color-mix(in srgb, var(--fc) 20%, #3a3a48)); }
+/* 나무 머리 · 줄: 초록 대신 남색 바탕에 계열 색 포인트 */
+#scr[data-s="grow"] .treehead { background: linear-gradient(color-mix(in srgb, var(--fc) 22%, #1c2a48), color-mix(in srgb, var(--fc) 10%, #141e36)) !important; box-shadow: 0 6px 14px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.14) !important; }
+#scr[data-s="grow"] .node { background: linear-gradient(color-mix(in srgb, var(--fc) 14%, #1e2c46), color-mix(in srgb, var(--fc) 6%, #16203a)) !important; position: relative; overflow: hidden; }
+#scr[data-s="grow"] .node::before { content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 5px; border-radius: 0 4px 4px 0; background: var(--fc); box-shadow: 0 0 8px var(--fc); }
+#scr[data-s="grow"] .node .nico { background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--fc) 55%, #fff 5%), color-mix(in srgb, var(--fc) 30%, #141e36)); color: #fff; text-shadow: 0 2px 0 rgba(0,0,0,.4); }
+#scr[data-s="grow"] .node .pips i.on { background: var(--fc); box-shadow: 0 0 4px var(--fc); }
+/* 올리기 단추 = 금(초록 단추 줄을 없앰) · 완료 = 차분한 청록 */
+#scr[data-s="grow"] .node .btn.green { background: linear-gradient(#fff0a0, #ffd23a 55%, #f0b020); box-shadow: 0 4px 0 #b07a10, inset 0 2px 0 rgba(255,255,255,.6); color: #5a2e00; text-shadow: 0 1px 0 rgba(255,255,255,.5); }
+#scr[data-s="grow"] .node .btn.sec { background: linear-gradient(#3a8a78, #24604f); color: #e0fff4; }
+#scr[data-s="grow"] .node.max::before { background: #5fe0a0; box-shadow: 0 0 8px #5fe0a0; }
+#scr[data-s="grow"] .fork { background: linear-gradient(color-mix(in srgb, var(--fc) 26%, #1e2c46), color-mix(in srgb, var(--fc) 10%, #16203a)) !important; }
+#scr[data-s="grow"] .goal { background: radial-gradient(ellipse at 15% 50%, rgba(255,210,58,.25), transparent 50%), linear-gradient(#2a3456, #1c2440) !important; }
+#scr[data-s="grow"] .sec-t { color: #d8ffe6; }
+
+/* ======================================================= 2. 상점: 종류별 색 + 등급별 화려함 */
+/* 보석 = 루비(진홍 · 분홍 빛) / 골드 = 호박(금빛 · 갈색) / 특가 = 하늘 / 꾸미기 = 보라 */
+.sitem.gem  { background: radial-gradient(ellipse at 50% 36%, rgba(255,90,150,.42), transparent 62%), linear-gradient(#7a1838, #44081e); }
+.sitem.gold { background: radial-gradient(ellipse at 50% 36%, rgba(255,214,90,.40), transparent 62%), linear-gradient(#6e4210, #3c2006); }
+.sitem.deal { background: radial-gradient(ellipse at 50% 36%, rgba(120,200,255,.36), transparent 62%), linear-gradient(#1e4a8a, #12285a); }
+.sitem.deco { background: radial-gradient(ellipse at 50% 36%, rgba(190,140,255,.36), transparent 62%), linear-gradient(#45307e, #261850); }
+.sitem.gem .am small { color: #ffc0dc; }
+.sitem.gold .am small { color: #ffe08a; }
+/* 가격 단추: 현금 = 금 · 보석으로 사는 것 = 루비 (무엇으로 사는지 색으로 읽힘) */
+.sitem .pr.gem { background: linear-gradient(#ff9ac8, #e0408a 60%, #c02870); box-shadow: 0 4px 0 #7a1240, inset 0 2px 0 rgba(255,255,255,.5); color: #fff; text-shadow: 0 1px 0 rgba(110,10,50,.7); }
+.sitem .pr.ad { background: linear-gradient(#9fd6ff, #3a7ad0); box-shadow: 0 4px 0 #21508f, inset 0 2px 0 rgba(255,255,255,.45); color: #fff; text-shadow: 0 1px 0 rgba(0,30,80,.6); }
+
+/* 등급: t1 수수 → t6 최고. 위로 갈수록 테두리 빛 · 반짝 띠 · 뒤 광선 */
+.sitem > * { position: relative; z-index: 1; }
+.sitem .pic { position: absolute; z-index: 1; }
+.sitem .tg, .sitem .bonus { z-index: 3; }
+.sitem::before, .sitem::after { content: ''; position: absolute; pointer-events: none; z-index: 0; }
+.sitem.t2 { box-shadow: 0 8px 18px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.3), 0 0 8px color-mix(in srgb, var(--rim, #ff7ab0) 25%, transparent); }
+.sitem.t3 { box-shadow: 0 8px 18px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.35), 0 0 16px color-mix(in srgb, var(--rim, #ff7ab0) 45%, transparent); }
+.sitem.t4, .sitem.t5, .sitem.t6 { box-shadow: 0 8px 18px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.4), inset 0 -40px 50px -30px color-mix(in srgb, var(--rim, #ff7ab0) 35%, transparent), 0 0 24px color-mix(in srgb, var(--rim, #ff7ab0) 60%, transparent); }
+.sitem.gem  { --rim: #ff6aa8; --ray: rgba(255,120,180,.30); }
+.sitem.gold { --rim: #ffd23a; --ray: rgba(255,220,110,.32); }
+/* 뒤 광선(t5 · t6) */
+.sitem.t5::before, .sitem.t6::before { left: 50%; top: 78px; width: 300px; height: 300px; margin: -150px 0 0 -150px; border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, var(--ray) 0 10deg, transparent 10deg 30deg);
+  -webkit-mask: radial-gradient(circle, #000 20%, transparent 68%); mask: radial-gradient(circle, #000 20%, transparent 68%);
+  animation: srays 14s linear infinite; }
+.sitem.t6::before { animation-duration: 9s; background: repeating-conic-gradient(from 0deg, var(--ray) 0 12deg, transparent 12deg 24deg); }
+@keyframes srays { to { transform: rotate(360deg); } }
+/* 반짝 띠(t4 이상) */
+.sitem.t4::after, .sitem.t5::after, .sitem.t6::after { left: -60%; top: -20%; width: 40%; height: 140%; z-index: 2;
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,.38), transparent); transform: skewX(-18deg); animation: sshine 3.6s ease-in-out infinite; }
+.sitem.t5::after { animation-delay: .6s; } .sitem.t6::after { animation-duration: 2.8s; animation-delay: 1.1s; }
+@keyframes sshine { 0%, 55% { left: -60%; } 85%, 100% { left: 130%; } }
+/* 최고 등급 = 금 테두리 + 상품 둥실 */
+.sitem.t6 { box-shadow: 0 8px 18px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.5), inset 0 -40px 50px -30px rgba(255,210,58,.4), 0 0 30px rgba(255,210,58,.75); }
+.sitem.t5 .pic, .sitem.t6 .pic { animation: sfloat 2.6s ease-in-out infinite; }
+@keyframes sfloat { 50% { translate: 0 -5px; } }
+.sitem.hot { box-shadow: 0 8px 18px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.4), 0 0 24px rgba(255,210,58,.6); }
+.sitem.sold::before, .sitem.sold::after, .sitem.sold .pic { animation: none; }
+.sitem.sold::before, .sitem.sold::after { display: none; }
+@media (prefers-reduced-motion: reduce) { .sitem::before, .sitem::after, .sitem .pic { animation: none !important; } }
+/* 묶음 제목 색도 종류 색으로 */
+.sec-t.s-gem { color: #ffb0d0 !important; } .sec-t.s-gem::before { background: #ff6aa8; box-shadow: 0 0 8px #ff6aa8; } .sec-t.s-gem::after { background: linear-gradient(90deg, rgba(255,106,168,.5), transparent); }
+.sec-t.s-gold { color: #ffe08a !important; } .sec-t.s-gold::before { background: #ffd23a; box-shadow: 0 0 8px #ffd23a; } .sec-t.s-gold::after { background: linear-gradient(90deg, rgba(255,210,58,.5), transparent); }
+.sec-t.s-deco { color: #d8c0ff !important; } .sec-t.s-deco::before { background: #b88cff; box-shadow: 0 0 8px #b88cff; } .sec-t.s-deco::after { background: linear-gradient(90deg, rgba(184,140,255,.5), transparent); }
+.sec-t.s-deal { color: #b8e0ff !important; } .sec-t.s-deal::before { background: #7ec0ff; box-shadow: 0 0 8px #7ec0ff; } .sec-t.s-deal::after { background: linear-gradient(90deg, rgba(126,192,255,.5), transparent); }

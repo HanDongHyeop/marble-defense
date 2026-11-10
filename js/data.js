@@ -104,15 +104,16 @@
   //   칸 위 포탑만 바꾸던 땅 속성(위 TRAITS)은 그대로 두고, 멈추는 순간 판 전체가 바뀌는 장면을 더함. 같은 기운이 또 걸리면 시간만 새로(겹치지 않음)
   //   행운의 땅 = 좋은 기운 하나를 무작위로(룰렛), 금맥 = 기운 대신 금화(그대로)
   //   [측정] 좋은 기운 +30% · 8초면 몬스터 생존 3.9 → 3.2초(v4.6 호흡이 다시 빨라짐) → +25% · 6초 = 3.9초 유지, 승률 보통 60 → 70%대(봇 60판, 기운 없음과 비교)
+  // [v5.5] plain = 알림 띠 제목(사용자: '느림' 같은 줄임말 대신 '몬스터 이동 속도 감소'처럼 한 번에 읽히게) · amt = 띠 아래 숫자
   const LANDFX = {
-    atk:     { name: '무기 보급',   good: true,  trait: 'arms',   dur: 6, v: 0.25, short: '공격', desc: '모든 포탑 공격력 +25%' },
-    aps:     { name: '맹훈련',      good: true,  trait: 'drill',  dur: 6, v: 0.25, short: '공속', desc: '모든 포탑 공격 속도 +25%' },
-    crit:    { name: '약점 포착',   good: true,  trait: 'watch',  dur: 6, v: 0.25, short: '치명', desc: '모든 포탑 치명 확률 +25%' },
-    armDown: { name: '정화의 빛',   good: true,  trait: 'holy',   dur: 6, v: 0.25, short: '방어↓', desc: '몬스터 방어력 −25%(받는 피해 +25%)' },
-    slow:    { name: '길막기',      good: true,  trait: 'choke',  dur: 6, v: 0.25, short: '느림', desc: '몬스터 이동 속도 −25%' },
-    armUp:   { name: '짙은 안개',   good: false, trait: 'fog',    dur: 8, v: 0.25, short: '방어↑', desc: '몬스터 방어력 +25%(받는 피해 −25%)' },
-    apsDown: { name: '거미줄 덫',   good: false, trait: 'web',    dur: 8, v: 0.25, short: '공속↓', desc: '모든 포탑 공격 속도 −25%' },
-    rush:    { name: '돌격 신호',   good: false, trait: 'target', dur: 8, v: 0.3,  short: '빠름', desc: '몬스터 이동 속도 +30%' },
+    atk:     { name: '무기 보급',   good: true, plain: '포탑 공격력 증가', amt: '+25%',  trait: 'arms',   dur: 6, v: 0.25, short: '공격↑', desc: '모든 포탑 공격력 +25%' },
+    aps:     { name: '맹훈련',      good: true, plain: '포탑 공격 속도 증가', amt: '+25%',  trait: 'drill',  dur: 6, v: 0.25, short: '공속↑', desc: '모든 포탑 공격 속도 +25%' },
+    crit:    { name: '약점 포착',   good: true, plain: '포탑 치명 확률 증가', amt: '+25%',  trait: 'watch',  dur: 6, v: 0.25, short: '치명↑', desc: '모든 포탑 치명 확률 +25%' },
+    armDown: { name: '정화의 빛',   good: true, plain: '몬스터 방어력 감소', amt: '−25%',  trait: 'holy',   dur: 6, v: 0.25, short: '방어↓', desc: '몬스터 방어력 −25%(받는 피해 +25%)' },
+    slow:    { name: '길막기',      good: true, plain: '몬스터 이동 속도 감소', amt: '−25%',  trait: 'choke',  dur: 6, v: 0.25, short: '이속↓', desc: '몬스터 이동 속도 −25%' },
+    armUp:   { name: '짙은 안개',   good: false, plain: '몬스터 방어력 증가', amt: '+25%', trait: 'fog',    dur: 8, v: 0.25, short: '방어↑', desc: '몬스터 방어력 +25%(받는 피해 −25%)' },
+    apsDown: { name: '거미줄 덫',   good: false, plain: '포탑 공격 속도 감소', amt: '−25%', trait: 'web',    dur: 8, v: 0.25, short: '공속↓', desc: '모든 포탑 공격 속도 −25%' },
+    rush:    { name: '돌격 신호',   good: false, plain: '몬스터 이동 속도 증가', amt: '+30%', trait: 'target', dur: 8, v: 0.3,  short: '이속↑', desc: '몬스터 이동 속도 +30%' },
   };
   const FX_OF = {}; for (const k in LANDFX) FX_OF[LANDFX[k].trait] = k;
   if (typeof process !== 'undefined' && process.env && process.env.LFX) { const x = JSON.parse(process.env.LFX); for (const k in LANDFX) Object.assign(LANDFX[k], x[k] || x[LANDFX[k].good ? 'good' : 'bad'] || {}); }   // 측정용: LFX='{"good":{"v":0}}'
@@ -237,7 +238,9 @@
     hard:   { name: '어려움', hp: 1.5, badLand: 2, fortHalf: true, desc: '체력 ×1.5 · 나쁜 땅 +2 · 요새 효과 절반' },
     hell:   { name: '지옥', hp: 1.6, badLand: 4, fortHalf: true, limit: 40, fastBoss: true, desc: '체력 ×1.6 · 나쁜 땅 +4 · 요새 절반 · 한도 40 · 보스 교란 빠름' },
   };
+  // [v5.5] 계열 색 — 한눈에 계열이 갈리게 서로 다른 다섯 색(전엔 원소·기계·성역·심연이 모두 따뜻한 색이라 덱에서 구분이 안 됐음). 아웃게임 · 도감 · 합치기 힌트가 모두 이 표를 쓴다
+  const FAMC = { 원소: '#ff6a3d', 기계: '#38c4ff', 비전: '#a77bff', 성역: '#ffd84a', 심연: '#ff3d8a', 조커: '#e8dcff' };
   const REACT = { thermal: '열충격!', superc: '초전도!', toxic: '유독 폭발!', shatter: '파쇄!' };
-  const DATA = { LANDFX, FX_OF, RANGE_T, DIFF, TOWERS, ALL, PRESETS, AWAKEN, REACT, DECK, TIER, STRIKE, MONSTERS, BOSSES, TRAITS, MAP1, CORNER, ZONE_COLOR, ZONE_NAME, UPGRADE_COST, COMMANDERS, PAWNS, CARDS, CARD_ODDS, CARD_PITY, KEYS, MISSIONS, ECON };
+  const DATA = { FAMC, LANDFX, FX_OF, RANGE_T, DIFF, TOWERS, ALL, PRESETS, AWAKEN, REACT, DECK, TIER, STRIKE, MONSTERS, BOSSES, TRAITS, MAP1, CORNER, ZONE_COLOR, ZONE_NAME, UPGRADE_COST, COMMANDERS, PAWNS, CARDS, CARD_ODDS, CARD_PITY, KEYS, MISSIONS, ECON };
   if (typeof module !== 'undefined' && module.exports) module.exports = DATA; else root.DATA = DATA;
 })(typeof window !== 'undefined' ? window : globalThis);

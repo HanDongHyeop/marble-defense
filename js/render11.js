@@ -3,8 +3,9 @@
 //   효과가 너무 약함: 몬스터 이동속도 −25%면 맵의 몬스터마다 위에서 아래로 확 너프되는 이펙트 + 작은 효과음,
 //   포탑 버프면 있는 포탑에만 위로 확 올라오는 이펙트, 시간제면 걸려 있는 동안 반짝이다 끝나면 꺼짐'
 // · 리본(R.ribbon 호출부는 그대로) → 반투명 붓질 띠(왼쪽에서 쓸려 나옴 · 위아래 흐림 · 끝은 붓 자국) + 글자가 한 자씩 튀어나옴
-// · 땅 기운이 대상에 닿는 순간(fxWave): 좋은 쪽 = 위로 솟는 화살표 두 개 + 빛기둥 / 나쁜 쪽(너프) = 위에서 내리꽂히는 화살표 + 찌그러짐 · 대상마다 짧은 소리(겹치지 않게 간격)
-// · 걸려 있는 동안: 포탑 = 발밑 빛 + 위로 올라가는 반짝이, 몬스터 = 머리 위 작은 화살표(느림 = 파란 발밑 고리) · 끝나기 2초 전부터 깜박 → 끝나면 사라짐
+// · [v5.5] 땅 기운이 닿는 순간(fxWave): 모든 대상에 같은 순간 · 화살표 없이 빛 입자만(세지는 쪽 = 솟는 빛 / 약해지는 쪽 = 쏟아지는 빛) · 소리 한 번
+// · [v5.5] 걸려 있는 동안: 발밑 빛 + 떠다니는 빛 알갱이만(느림 = 파란 발밑 고리 · 빠름 = 속도선) · 끝나기 2초 전부터 깜박 → 끝나면 사라짐
+// · [v5.5] 합치기 힌트(mergeHints): 짝이 있는 포탑 위 계열 색 두 겹 화살표
 // · 그리기 원칙(지침): 오프스크린 캔버스 캐시 없음, 'lighter' 없음, 끝 값 딱 고정
 (function (root) {
   const R = root.Renderer.prototype, G = root.GEOM, D = root.DATA;
@@ -15,80 +16,67 @@
   const ON_TOWER = { atk: 1, aps: 1, crit: 1, apsDown: 1 };
   const UP = { atk: 1, aps: 1, crit: 1, armUp: 1, rush: 1 };      // 대상이 세지는 쪽 = 위로 솟음 / 나머지 = 내리꽂힘(약해짐)
   const COL = { atk: ['#ffd0a0', '#ff8a3a'], aps: ['#fff2a0', '#ffc21c'], crit: ['#d8faff', '#46c8ff'], armDown: ['#fff6c0', '#ffcf3a'], slow: ['#d8f0ff', '#5ab0ff'], armUp: ['#e8dcff', '#9a7ae0'], apsDown: ['#ecd8ff', '#a45ae0'], rush: ['#ffd0d6', '#ff4a5e'] };
-  const LBL = { atk: '공격↑', aps: '공속↑', crit: '치명↑', armDown: '방어↓', slow: '느림', armUp: '방어↑', apsDown: '공속↓', rush: '빠름' };
 
-  // ------------------------------------------------------------ 화살표(두꺼운 쐐기 · 자두색 테 · 위아래 그라데이션)
-  R.chev = function (c, x, y, s, up, col, a) {
-    c.save(); c.globalAlpha = a; c.translate(x, y); c.scale(s, up ? s : -s);
-    const path = () => { c.beginPath(); c.moveTo(0, -16); c.lineTo(18, 2); c.lineTo(9, 2); c.lineTo(9, 14); c.lineTo(-9, 14); c.lineTo(-9, 2); c.lineTo(-18, 2); c.closePath(); };
-    path(); c.lineJoin = 'round'; c.lineWidth = 6; c.strokeStyle = PLUM; c.stroke();
-    const g = c.createLinearGradient(0, -16, 0, 14); g.addColorStop(0, col[0]); g.addColorStop(1, col[1]); c.fillStyle = g; path(); c.fill();
-    c.globalAlpha = a * 0.55; c.fillStyle = '#ffffff'; c.beginPath(); c.moveTo(0, -12); c.lineTo(10, -2); c.lineTo(0, -2); c.closePath(); c.fill();
-    c.restore();
-  };
-
-  // ------------------------------------------------------------ 대상 하나에 닿는 순간
-  R.fxHit = function (k, x, y, h) {
-    const col = COL[k], up = !!UP[k], A = this._A, lbl = LBL[k];
+  // ------------------------------------------------------------ [v5.5] 대상 하나에 닿는 입자(화살표 · 글자 없음)
+  // 사용자(2026-11-10): '대상마다 하나씩 화살표가 꽂히는 대신, 오브젝트 없는 입자 효과로 모든 대상에 한 번에 촥~ · 글자 알림은 위 띠 하나로'
+  //   세지는 쪽(포탑 버프 · 몬스터 강화) = 발밑에서 빛 줄기가 위로 솟음 / 약해지는 쪽 = 위에서 빛 비가 쏟아져 대상에 부딪혀 퍼짐
+  R.fxHit = function (k, x, y, h, big) {
+    const col = COL[k], up = !!UP[k], n = big ? 12 : 9;
     if (up) {
-      // 빛기둥 + 화살표 두 개가 위로 확
-      this.addFx(0.55, (c, p) => {
-        c.save();
-        const a = p < 0.15 ? p / 0.15 : 1 - (p - 0.15) / 0.85, hh = 40 + eo(p) * (h + 70);
-        const g = c.createLinearGradient(0, y + 6, 0, y - hh); g.addColorStop(0, col[1]); g.addColorStop(1, 'rgba(255,255,255,0)');
-        c.globalAlpha = a * 0.45; c.fillStyle = g; c.beginPath(); c.ellipse(x, y + 6, 26, 10, 0, 0, TAU); c.fill(); c.fillRect(x - 20, y - hh, 40, hh + 6);
-        c.restore();
-        for (let j = 0; j < 2; j++) { const q = clamp((p - j * 0.12) / 0.6, 0, 1); if (q <= 0) continue; this.chev(c, x, y - 10 - eo(q) * (h + 34), (0.9 - j * 0.2) * (q < 0.2 ? 0.4 + q * 3 : 1), true, col, q < 0.75 ? 1 : (1 - q) / 0.25); }
-      }, 'over');
-      for (let q = 0; q < 5; q++) this.part({ x: x + rnd(-16, 16), y: y - rnd(0, 20), vx: rnd(-20, 20), vy: -rnd(140, 240), life: 0.55, size: rnd(3, 5), col: q % 2 ? '#ffffff' : col[0], kind: 'star', vr: 6, drag: 1.5 });
-      this.ring(x, y + 6, 30, col[1], 0.45, 5);
-      if (A && A.tone && A.gate('fxu', 0.045)) A.tone({ f: 620, f2: 1240, d: 0.12, v: 0.035, wave: 'triangle', slide: 0.1 });
+      this.addFx(0.45, (c, p) => { c.save(); c.globalAlpha = (1 - p) * 0.6; c.fillStyle = col[1]; c.beginPath(); c.ellipse(x, y + 6, 26 + p * 26, 10 + p * 9, 0, 0, TAU); c.fill(); c.restore(); }, 'under');
+      // 빛 기둥(물체 아님 · 빛만): 발밑에서 위로 확 솟았다가 가늘어지며 사라짐
+      this.addFx(0.4, (c, p) => { const hh = (h + 60) * eo(Math.min(1, p / 0.35)), w = 30 * (1 - p * 0.7); c.save(); const gl = c.createLinearGradient(0, y + 6, 0, y - hh); gl.addColorStop(0, col[1]); gl.addColorStop(0.5, col[0]); gl.addColorStop(1, 'rgba(255,255,255,0)'); c.globalAlpha = (1 - p) * 0.55; c.fillStyle = gl; c.fillRect(x - w / 2, y - hh, w, hh + 6); c.restore(); }, 'over');
+      for (let q = 0; q < n; q++) this.part({ x: x + rnd(-18, 18), y: y + rnd(-4, 8), vx: rnd(-30, 30), vy: -rnd(320, 520), life: rnd(0.35, 0.5), size: rnd(3, 4.5), col: q % 3 ? col[1] : '#ffffff', kind: 'spark', drag: 2.4 });
+      for (let q = 0; q < 3; q++) this.part({ x: x + rnd(-14, 14), y: y - rnd(10, h * 0.6), vx: rnd(-25, 25), vy: -rnd(90, 160), life: 0.55, size: rnd(3, 5), col: col[0], kind: 'star', vr: 6, drag: 1.5 });
     } else {
-      // 위에서 내리꽂힘 → 쿵(대상 머리 쪽에서 찌그러짐) + 먼지
-      const top = y - h - 6;
-      this.addFx(0.6, (c, p) => {
-        const fall = clamp(p / 0.28, 0, 1), yy = top - 110 + fall * fall * 110, sq = fall >= 1 ? Math.max(0, 1 - (p - 0.28) / 0.12) : 0;
-        const a = p < 0.7 ? 1 : (1 - p) / 0.3;
-        c.save(); c.translate(x, yy); c.scale(1 + sq * 0.35, 1 - sq * 0.3); c.translate(-x, -yy);
-        this.chev(c, x, yy, 1.05, false, col, a); c.restore();
-        if (fall >= 1) { c.save(); c.globalAlpha = a * 0.8; c.strokeStyle = col[1]; c.lineWidth = 4; c.beginPath(); c.ellipse(x, top + 6, 16 + (p - 0.28) * 70, 6 + (p - 0.28) * 20, 0, 0, TAU); c.stroke(); c.restore(); }
-      }, 'over');
-      this.later8(0.17, () => {
-        for (let q = 0; q < 6; q++) this.part({ x: x + rnd(-10, 10), y: top + 4, vx: rnd(-120, 120), vy: rnd(-60, 10), life: 0.4, size: rnd(3, 5), col: q % 2 ? col[0] : col[1], kind: 'puff', drag: 3 });
-        if (A && A.tone && A.gate('fxd', 0.045)) A.tone({ f: 360, f2: 120, d: 0.13, v: 0.05, wave: 'square', slide: 0.1 });
+      const top = y - h * 0.55;
+      // 빛 비(물체 아님): 위에서 대상으로 쏟아지는 빛줄기 한 묶음
+      this.addFx(0.3, (c, p) => { const yy = top - 120 + eo(Math.min(1, p / 0.5)) * 120, w = 26 * (1 - p * 0.5); c.save(); const gl = c.createLinearGradient(0, yy - 90, 0, yy + 10); gl.addColorStop(0, 'rgba(255,255,255,0)'); gl.addColorStop(0.7, col[0]); gl.addColorStop(1, col[1]); c.globalAlpha = (1 - p) * 0.55; c.fillStyle = gl; c.fillRect(x - w / 2, yy - 90, w, 100); c.restore(); }, 'over');
+      for (let q = 0; q < n; q++) this.part({ x: x + rnd(-22, 22), y: top - rnd(60, 110), vx: rnd(-20, 20), vy: rnd(560, 760), life: 0.16, size: rnd(3, 4.5), col: q % 3 ? col[1] : '#ffffff', kind: 'spark', drag: 0 });
+      this.later8(0.15, () => {
+        this.addFx(0.4, (c, p) => { c.save(); c.globalAlpha = (1 - p) * 0.75; c.strokeStyle = col[1]; c.lineWidth = 3.5 * (1 - p) + 1; c.beginPath(); c.ellipse(x, y + 4, 14 + p * 26, 5 + p * 9, 0, 0, TAU); c.stroke(); c.restore(); }, 'under');
+        for (let q = 0; q < 5; q++) { const a = rnd(Math.PI * 1.05, Math.PI * 1.95); this.part({ x: x + rnd(-8, 8), y: top + 10, vx: Math.cos(a) * rnd(90, 170), vy: Math.sin(a) * rnd(40, 110), grav: 500, life: 0.38, size: rnd(2.5, 4), col: q % 2 ? col[0] : col[1], kind: 'dot', drag: 1 }); }
       });
     }
-    // 대상 위 짧은 글자
-    this.later8(up ? 0.18 : 0.2, () => this.say(lbl, col[0], x, y - h - (up ? 64 : 40), 1.3, 26));
   };
 
-  // 변신: 출발 칸에서 가까운 대상부터 차례로(0.06초 간격 이상) — 포탑 기운은 포탑만, 몬스터 기운은 몬스터만
+  // 변신: 판 위 모든 대상에 '같은 순간' 한 번에(움직임은 대상마다 조금씩 달라도 타이밍은 하나) · 소리도 한 번
   R.fxWave = function (game, k) {
-    const src = this._fxSrc || [360, 420], items = [];
-    if (ON_TOWER[k]) { for (const t of game.tiles) if (t.tower) { const [x, y] = G.tiles[t.i].tower; items.push({ x, y, h: 70 + t.tower.tier * 8, d: Math.hypot(x - src[0], y - src[1]) }); } }
-    else for (const m of game.monsters) if (m.alive) items.push({ m, x: m.x, y: m.y, h: 34 * (m.g || 1) + (m.boss ? 30 : 0), d: Math.hypot(m.x - src[0], m.y - src[1]) });
-    items.sort((a, b) => a.d - b.d);
-    items.slice(0, 40).forEach((it, j) => this.later8(Math.min(1.2, j * 0.06), () => { if (it.m && !it.m.alive) return; this.fxHit(k, it.m ? it.m.x : it.x, it.m ? it.m.y : it.y, it.h); }));
-    if (!items.length) this.say(ON_TOWER[k] ? '포탑이 생기면 바로 걸려요' : '몬스터가 나오면 바로 걸려요', '#fff4e0', 360, 330, 1.2, 18);
+    const items = [];
+    if (ON_TOWER[k]) { for (const t of game.tiles) if (t.tower) { const [x, y] = G.tiles[t.i].tower; items.push({ x, y, h: 70 + t.tower.tier * 8 }); } }
+    else for (const m of game.monsters) if (m.alive) items.push({ x: m.x, y: m.y, h: 34 * (m.g || 1) + (m.boss ? 30 : 0), big: !!m.boss });
+    if (!items.length) { this.say(ON_TOWER[k] ? '포탑이 생기면 바로 걸려요' : '몬스터가 나오면 바로 걸려요', '#fff4e0', 360, 330, 1.2, 18); return; }
+    for (const it of items.slice(0, 48)) this.fxHit(k, it.x, it.y, it.h, it.big);
+    // 판 전체에 옅은 색 물결 한 번(촥)
+    const col = COL[k];
+    this.addFx(0.35, (c, p) => { c.save(); c.globalAlpha = (1 - p) * 0.14; c.fillStyle = col[1]; c.fillRect(0, 0, 720, 1280); c.restore(); }, 'under');
+    const A = this._A;
+    if (A && A.noise && A.gate('fxwave', 0.3)) {
+      const up = !!UP[k];
+      A.noise({ f: up ? 900 : 3000, f2: up ? 3200 : 700, d: 0.26, v: 0.16, type: 'bandpass' });
+      A.tone && A.tone(up ? { f: 660, f2: 1320, d: 0.16, v: 0.05, wave: 'triangle', delay: 0.02 } : { f: 420, f2: 160, d: 0.18, v: 0.06, wave: 'triangle', delay: 0.12 });
+    }
   };
 
-  // ------------------------------------------------------------ 걸려 있는 동안 표시(매 프레임 · 가볍게)
+  // ------------------------------------------------------------ 걸려 있는 동안 표시(매 프레임 · 가볍게) — 발밑 빛 + 떠다니는 빛 알갱이만(화살표 없음)
   R.fxMarks = function (c, g) {
     if (!g || !g.lfx) return;
     const t = this.time;
     for (const k in D.LANDFX) {
       if (!g.fxOn(k)) continue;
       const left = g.fxLeft(k), blink = left < 2 ? (Math.sin(t * 18) > 0 ? 1 : 0.25) : 1, col = COL[k], up = !!UP[k];
+      const motes = (x, y, h, seed, n) => {   // 세지면 위로 오르고, 약해지면 위에서 내려앉는 알갱이
+        for (let q = 0; q < n; q++) {
+          const ph = (t * 0.8 + seed * 0.37 + q / n) % 1, sx = x + Math.sin(seed * 7 + q * 3.1) * 15, sy = up ? y - 6 - ph * h : y - h + ph * (h - 6);
+          c.save(); c.globalAlpha = blink * 0.9 * (ph < 0.2 ? ph / 0.2 : 1 - (ph - 0.2) / 0.8); this.star(c, sx, sy, 4, 5 - ph * 2, 1.8, t * 2 + q, q % 2 ? '#ffffff' : col[0]); c.restore();
+        }
+      };
       if (ON_TOWER[k]) {
         g.tiles.forEach((tl, j) => {
           if (!tl.tower) return; const [x, y] = G.tiles[tl.i].tower;
           c.save(); const pa = blink * (0.75 + 0.25 * Math.sin(t * 5 + j)); c.globalAlpha = 0.45 * pa; c.fillStyle = col[1]; c.beginPath(); c.ellipse(x, y + 6, 36, 14, 0, 0, TAU); c.fill();
-          const gl = c.createLinearGradient(0, y + 6, 0, y - 70); gl.addColorStop(0, col[1]); gl.addColorStop(1, 'rgba(255,255,255,0)'); c.globalAlpha = 0.22 * pa; c.fillStyle = gl; c.fillRect(x - 26, y - 70, 52, 76); c.restore();
-          for (let q = 0; q < 2; q++) {   // 위로 올라가는 반짝이(포탑마다 다른 박자)
-            const ph = (t * 0.9 + j * 0.37 + q * 0.5) % 1, sx = x + Math.sin(j * 7 + q * 3) * 16, sy = y - 10 - ph * 70;
-            c.save(); c.globalAlpha = blink * (ph < 0.2 ? ph / 0.2 : 1 - (ph - 0.2) / 0.8); this.star(c, sx, sy, 4, 6 - ph * 3, 2, t * 2, up ? col[0] : col[1]); c.restore();
-          }
-          if (!up) this.chev(c, x, y - 96 + Math.sin(t * 4 + j) * 3, 0.6, false, col, 0.9 * blink);
+          const gl = c.createLinearGradient(0, y + 6, 0, y - 70); gl.addColorStop(0, col[1]); gl.addColorStop(1, 'rgba(255,255,255,0)'); c.globalAlpha = 0.2 * pa; c.fillStyle = gl; c.fillRect(x - 26, y - 70, 52, 76); c.restore();
+          motes(x, y, 72, j, 2);
         });
       } else {
         for (const m of g.monsters) {
@@ -96,11 +84,39 @@
           if (k === 'slow') { c.save(); c.globalAlpha = 0.55 * blink; c.strokeStyle = col[1]; c.lineWidth = 4; c.beginPath(); c.ellipse(m.x, m.y + 2, 18 * (m.g || 1), 7 * (m.g || 1), 0, 0, TAU); c.stroke(); c.restore(); }
           if (k === 'rush') { c.save(); c.globalAlpha = 0.5 * blink; c.strokeStyle = col[1]; c.lineWidth = 2; for (let q = 0; q < 3; q++) { const yy = m.y - 6 - q * 7, ph = (t * 3 + q * 0.3) % 1; c.beginPath(); c.moveTo(m.x - 18 - ph * 10, yy); c.lineTo(m.x - 30 - ph * 10, yy); c.stroke(); } c.restore(); }
           c.save(); c.globalAlpha = 0.4 * blink; c.fillStyle = col[1]; c.beginPath(); c.ellipse(m.x, m.y + 2, 20 * (m.g || 1), 8 * (m.g || 1), 0, 0, TAU); c.fill(); c.restore();
-          this.chev(c, m.x, m.y - h - 20 + Math.sin(t * 5 + m.id) * 2.5, 0.62, up, col, 0.95 * blink);
+          motes(m.x, m.y, h + 10, m.id, 1);
         }
       }
     }
   };
+  // ------------------------------------------------------------ [v5.5] 합치기 힌트: 짝이 있는 포탑 위에 계열 색 반투명 두 겹 화살표(︽) · 위아래로 둥실
+  // 사용자(2026-11-10): '합칠 수 있으면 포탑 위에 계열 색 반투명 이중 화살표 · 아이들 모션으로 위아래'
+  //   짝 계산은 판이 바뀔 때만(0.25초마다) · 말 제안 화살표가 떠 있는 칸은 건너뜀 · 화살표는 포탑마다 박자를 조금씩 어긋나게
+  R.mergeHints = function (c, game) {
+    const now = this.time;
+    if (!this._mh || now - this._mh.t > 0.25) {
+      const set = [];
+      for (const a of game.tiles) if (a.tower && a.tower.tier < 6 && game.tiles.some(b => b.tower && game.canMerge(a.i, b.i))) set.push(a.i);
+      this._mh = { t: now, set };
+    }
+    const offerI = game.offer && game.t <= game.offer.until ? game.offer.i : -1;
+    for (const i of this._mh.set) {
+      const t = game.tiles[i]; if (!t.tower || i === offerI) continue;
+      const T = D.TOWERS[t.tower.type] || {}, col = (D.FAMC && D.FAMC[T.fam]) || '#ffd23a';
+      const Rr = this.towerRect(game, i), x = Rr.cx, y = Rr.y - 30 + Math.sin(now * 3.4 + i * 0.7) * 5;
+      c.save(); c.globalAlpha = 0.78; c.lineCap = 'round'; c.lineJoin = 'round';
+      for (let k = 0; k < 2; k++) {
+        const yy = y + k * 11, a2 = k ? 0.75 : 1;
+        c.globalAlpha = 0.78 * a2;
+        c.beginPath(); c.moveTo(x - 12, yy + 6); c.lineTo(x, yy - 5); c.lineTo(x + 12, yy + 6);
+        c.strokeStyle = 'rgba(43,20,38,.85)'; c.lineWidth = 9; c.stroke();
+        c.strokeStyle = col; c.lineWidth = 5; c.stroke();
+        c.strokeStyle = 'rgba(255,255,255,.55)'; c.lineWidth = 1.6; c.beginPath(); c.moveTo(x - 9, yy + 2.5); c.lineTo(x, yy - 5.5); c.stroke();
+      }
+      c.restore();
+    }
+  };
+
   const baseDrawTop = R.drawTop;
   R.drawTop = function (dt) { baseDrawTop.call(this, dt); if (this._g) this.fxMarks(this.top, this._g); };
 

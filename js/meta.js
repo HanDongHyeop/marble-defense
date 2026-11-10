@@ -5,10 +5,10 @@
 
   const FAMS = [
     { id: 'elem', name: '원소', color: '#ff6a3d', towers: ['fire', 'ice', 'poison'] },
-    { id: 'mech', name: '기계', color: '#ffb02e', towers: ['gatling', 'railgun', 'mining'] },
+    { id: 'mech', name: '기계', color: '#38c4ff', towers: ['gatling', 'railgun', 'mining'] },
     { id: 'arc', name: '비전', color: '#a77bff', towers: ['bolt', 'summon', 'combo'] },
-    { id: 'holy', name: '성역', color: '#e8c050', towers: ['light', 'beacon', 'growth'] },
-    { id: 'abyss', name: '심연', color: '#e0303a', towers: ['tyrant', 'corrode', 'greed'] },
+    { id: 'holy', name: '성역', color: '#ffd84a', towers: ['light', 'beacon', 'growth'] },
+    { id: 'abyss', name: '심연', color: '#ff3d8a', towers: ['tyrant', 'corrode', 'greed'] },
   ];
   const FAM_OF = {}; FAMS.forEach(f => f.towers.forEach(t => (FAM_OF[t] = f.id)));
   // 처음부터 가진 포탑(계열마다 둘) · 코어로 여는 포탑

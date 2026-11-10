@@ -300,6 +300,7 @@
   };
 
   // ------------------------------------------------------------ 한 장면(render.js frame 대체)
+  const clamp01 = v => Math.max(0, Math.min(1, v));
   R.frame = function (game, dt, ui) {
     this._game = game;
     this.time += dt;
@@ -338,6 +339,7 @@
       c.fillStyle = '#2b1426'; c.beginPath(); c.moveTo(ax - 13, ay - 18); c.lineTo(ax + 13, ay - 18); c.lineTo(ax, ay + 1); c.closePath(); c.fill();
       c.fillStyle = '#5fe06a'; c.beginPath(); c.moveTo(ax - 9, ay - 15.5); c.lineTo(ax + 9, ay - 15.5); c.lineTo(ax, ay - 3); c.closePath(); c.fill();
     }
+    if (!dragging && this.mergeHints) this.mergeHints(c, game);   // [v5.5] 합칠 짝이 있으면 포탑 위 계열 색 두 겹 화살표
     this.drawShots(c, game);
     this.drawParts(c, dt, 'world');
     this.drawFx(c, 'over');
@@ -349,10 +351,12 @@
       c.save(); c.fillStyle = 'rgba(14,8,26,0.6)'; c.fillRect(-30, -30, 780, 960); c.restore();
       const ok = game.tiles.filter(t => t.tower && t.i !== d.from && game.canMerge(d.from, t.i)).sort((a, b) => G.tiles[a.i].tower[1] - G.tiles[b.i].tower[1]);
       for (const t of ok) this.mergeBeam(c, t.i, d.target === t.i);
-      for (const t of ok) this.drawTower(c, game, t.i, { scale: d.target === t.i ? 1.12 : 1 });
+      // [v5.5] 다가갈수록 짝 포탑이 커짐(150px 안에서 점점 · 고른 대상은 1.24배) · 든 포탑은 놓인 크기보다 15% 크게
+      const near = i => { if (d.fx == null) return 0; const [tx, ty] = G.tiles[i].tower; return clamp01(1 - Math.hypot(tx - d.fx, ty - d.fy) / 150); };
+      for (const t of ok) { const q = near(t.i), sc = d.target === t.i ? 1.24 + Math.sin(this.time * 14) * 0.015 : 1 + 0.14 * q * q; this.drawTower(c, game, t.i, { scale: sc }); }
       this.drawStarsPass(c, game, new Set(ok.map(t => t.i)));
       if (!ok.length) { c.save(); c.font = '700 20px Jua, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; this.outlined(c, '합칠 짝이 없어요', 360, 150, '#d9cfff', '#2b1426', 6); c.restore(); }
-      if (d.fx != null) { const tw = game.tiles[d.from].tower; this.drawTower(c, game, d.from, { at: [d.fx, d.fy - 14], scale: 1.1, shadow: [d.fx, d.fy + 2], tw }); this.starsFor(c, game, d.from, tw, [d.fx, d.fy - 14 - 6]); }
+      if (d.fx != null) { const tw = game.tiles[d.from].tower; this.drawTower(c, game, d.from, { at: [d.fx, d.fy - 14], scale: 1.15, shadow: [d.fx, d.fy + 2], tw }); this.starsFor(c, game, d.from, tw, [d.fx, d.fy - 14 - 6]); }
     }
     if (this.dice) this.drawDice(c);
     if (this.flash > 0) { c.fillStyle = `rgba(255,255,255,${Math.min(0.5, this.flash)})`; c.fillRect(-20, -20, 760, 940); this.flash -= dt; }
