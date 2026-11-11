@@ -77,7 +77,9 @@
     // ------------------------------------------------------------ 라운드 · 몬스터
     startRound() {
       this.round++;
-      this.roundT = 0;
+      this.roundT = 0; this.clearAt = null;
+      // [v5.9] 다음 보스를 미리 정해 둠 — 판 입구에 앉아 있고 잡몹이 그 보스에게서 나온다(사용자: '랜다처럼 보스가 배치돼 있고 보스에서 잡몹이 나오는 형태')
+      if (this.nextBoss == null) this.nextBoss = this.pickBoss(Math.ceil(this.round / 5) * 5);
       const r = this.round, n = ECON.count(r);
       const q = [];
       for (let k = 0; k < n; k++) {
@@ -114,12 +116,16 @@
       this.posOf(m);
       return m;
     }
+    pickBoss(r) {
+      const dis = ['destroyer', 'ghost', 'witch', 'quake', 'swindler', 'magician'];
+      if (r >= 20 && this.mode === 'conquest') return this.pickOne(['destroyer', 'ghost', 'quake']);
+      return this.r() < 0.18 ? this.pickOne(['piggy', 'goblin']) : this.pickOne(dis);
+    }
     spawnBoss() {
       const r = this.round;
-      let kind;
-      const dis = ['destroyer', 'ghost', 'witch', 'quake', 'swindler', 'magician'];
-      if (r >= 20 && this.mode === 'conquest') kind = this.pickOne(['destroyer', 'ghost', 'quake']);
-      else kind = this.r() < 0.18 ? this.pickOne(['piggy', 'goblin']) : this.pickOne(dis);
+      const kind = this.nextBoss || this.pickBoss(r);
+      // 다음 보스(정복은 마지막 라운드 뒤엔 없음)
+      this.nextBoss = this.mode === 'conquest' && r + 5 > ECON.rounds ? '' : this.pickBoss(r + 5);
       const hpMul = ECON.bossHp * (r >= 20 ? 1.1 : 1) * (this.has('weakspot') ? 0.75 : 1);   // [v5.7] 약점 파악
       const m = this.spawnMonster('normal', 0, 0, { boss: kind, hpMul, weight: kind === 'goblin' ? 0 : ECON.bossW, spd: (kind === 'goblin' ? 1.5 : 0.6) * ECON.bossSpd, abT: 6, born: this.t, cardOnKill: !(r >= 20 && this.mode === 'conquest'), w: 0 });
       m.kind = 'boss';
@@ -175,7 +181,7 @@
     bossDown(m) {
       const k = m.boss;
       this.boss = null;
-      if (this.roundT > ECON.roundTime - 2) this.roundT = ECON.roundTime - 2;   // [v5.6] 보스를 잡으면 2초 숨 돌린 뒤 다음 라운드
+      this.roundT = ECON.roundTime - ECON.clearWait;   // [v5.9] 보스를 잡으면 3초 뒤 다음 라운드(전: 2초). 보스가 오래 버텨 시간을 넘겼어도 3초는 숨 돌림
       this.emit('bossDown', { boss: k });
       if (this.round >= 20 && this.mode === 'conquest' && k !== 'goblin' && k !== 'piggy') { this.win(); return; }
       const picks = k === 'goblin' ? 2 : 1;
@@ -188,7 +194,7 @@
     //   좋은 보스(저금통 · 황금 고블린)는 수정을 깨지 않고 빠져나감(저금통은 그때 금화 보너스)
     bossEscape(m) {
       const k = m.boss; m.alive = false; this.boss = null; this.crystal = null;
-      if (this.roundT > ECON.roundTime - 2) this.roundT = ECON.roundTime - 2;
+      this.roundT = ECON.roundTime - ECON.clearWait;
       if (BOSSES[k].kind === 'disrupt') {
         const from = this.limit, to = Math.max(ECON.crystal.min, from - ECON.crystal.dmg);
         this.limit = to; this.crystalBroken = (this.crystalBroken || 0) + 1;
@@ -840,20 +846,13 @@
       this._cardFx = null;
       this.emit('cardFx', fx);
     }
-    // [v5.7] 기다림 건너뛰기 — 사용자(2026-11-10): '몬스터를 빨리 잡으면 너무 기다린다. 이번 웨이브 몬스터(보스 포함)를 다 잡으면 켜지는 건너뛰기'
-    //   켜지는 때 = 라운드 진행 중 · 나올 몬스터가 다 나왔고 · 살아 있는 몬스터(보스 포함, 수송차 빼고)가 없음
-    canSkip() {
-      if (this.round < 1 || this.over || this.paused || this.cardPick) return false;
+    // [v5.9] 웨이브 다 잡음 = 3초 뒤 자동으로 다음 웨이브(보스 웨이브도). 사용자(2026-11-11): '스킵 버튼은 삭제하고, 해당 웨이브 몬스터가 없어지면 3초 후 남은 시간을 자동으로 리셋해 다음 웨이브 시작'
+    //   (전 v5.7 = 다 잡으면 켜지는 스킵 단추) 조건 = 라운드 진행 중 · 나올 몬스터가 다 나왔고 · 살아 있는 몬스터(보스 포함, 수송차 빼고)가 없음
+    waveClear() {
+      if (this.round < 1 || this.over) return false;
       if (this.mode === 'conquest' && this.round >= ECON.rounds) return false;
       if (this.spawnQ.length) return false;
       return !this.monsters.some(m => m.alive && m.kind !== 'truck');
-    }
-    skipWait() {
-      if (!this.canSkip()) return false;
-      const left = Math.max(0, ECON.roundTime - this.roundT);
-      this.emit('skip', { left });
-      this.startRound();
-      return true;
     }
 
     // ------------------------------------------------------------ 강화 · 지휘관 · 수송차
@@ -1010,6 +1009,11 @@
         const last = this.mode === 'conquest' && this.round >= ECON.rounds;
         // [v5.6] 보스가 살아 있는 동안은 다음 라운드를 미룬다(보스 단독 · 최대 ECON.bossHold초 — 그 뒤엔 예전처럼 다음 라운드와 함께)
         const hold = this.boss && this.boss.alive && this.bossT < ECON.bossHold;
+        if (this.clearAt == null && this.waveClear()) {   // [v5.9] 다 잡음 → 남은 시간을 3초로(그보다 적게 남았으면 그대로)
+          this.clearAt = this.t;
+          if (this.roundT < ECON.roundTime - ECON.clearWait) this.roundT = ECON.roundTime - ECON.clearWait;
+          this.emit('waveClear', { round: this.round });
+        }
         if (!last && !hold && this.roundT >= ECON.roundTime) this.startRound();
       }
       // 몬스터 이동

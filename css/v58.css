@@ -18,15 +18,7 @@
 #warnFx #warnName { font: 400 26px Jua, sans-serif; color: #fff; text-shadow: 0 3px 0 #2b0410; }
 #warnFx small { font: 400 17px Jua, sans-serif; color: #ffd0d6; margin-bottom: 8px; padding: 0 24px; text-align: center; }
 
-/* ② 보스 진행 줄(보스 체력 바 아래): 입구 ● → ◆ 절반 → 수정 */
-#lapTrack { --p: 0%; position: relative; height: 18px; margin: 6px 10px 0; }
-#lapTrack .ln { position: absolute; left: 0; right: 14px; top: 7px; height: 5px; border-radius: 3px; background: linear-gradient(90deg, #ffd23a 0 50%, #d070ff 50% 100%); box-shadow: 0 0 0 2px var(--plum); opacity: .85; }
-#lapTrack .hf { position: absolute; left: calc(50% - 7px - 9px); top: -3px; font-style: normal; font-size: 20px; line-height: 1; color: #ffd23a; text-shadow: 0 2px 0 var(--plum), 0 0 8px #ffd23a; animation: hfBeat 1s ease-in-out infinite alternate; }
-@keyframes hfBeat { to { transform: scale(1.2); } }
-#lapTrack.miss .hf { color: #8a8098; text-shadow: 0 2px 0 var(--plum); animation: none; }
-#lapTrack.miss .ln { background: linear-gradient(90deg, #6a6078 0 50%, #ff5a8a 50% 100%); }
-#lapTrack .cr { position: absolute; right: 0; top: -5px; width: 18px; height: 26px; background: url(../assets/img/x_crystal.png) center / contain no-repeat; filter: drop-shadow(0 0 6px #d070ff); }
-#lapTrack .me { position: absolute; left: calc((100% - 14px) * var(--p) / 100% - 8px); left: calc(var(--p) * 0.96 - 8px); top: 1px; width: 16px; height: 16px; border-radius: 50%; background: #ff4a5a; box-shadow: 0 0 0 3px var(--plum), 0 0 10px #ff4a5a; transition: left .25s linear; }
+/* ② 보스 진행 줄 → [v5.9] 삭제(사용자: '중간 지점은 유저가 인지하지 않아도 돼 · 화면 UI가 너무 복잡') */
 
 /* ③ 수정 조각 → 게이지 */
 .crShard { position: fixed; left: 0; top: 0; width: 22px; height: 22px; margin: -11px 0 0 -11px; z-index: 60; pointer-events: none;
@@ -42,4 +34,4 @@
 .limPop b { color: #ff6a7a; font-weight: 400; font-size: 30px; }
 .limPop em { font-style: normal; margin-left: 8px; color: #ffd23a; font-size: 20px; }
 @keyframes limPopIn { 0% { opacity: 0; transform: translate(-50%, -14px) scale(.6); } 12% { opacity: 1; transform: translate(-50%, 0) scale(1.15); } 22% { transform: translate(-50%, 0) scale(1); } 85% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, 6px); } }
-@media (prefers-reduced-motion: reduce) { #warnFx.go .vig, #warnFx b, #lapTrack .hf, #gauge.limhit { animation-duration: .01s !important; animation-iteration-count: 1 !important; } }
+@media (prefers-reduced-motion: reduce) { #warnFx.go .vig, #warnFx b, #gauge.limhit { animation-duration: .01s !important; animation-iteration-count: 1 !important; } }

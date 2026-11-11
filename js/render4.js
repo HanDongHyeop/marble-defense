@@ -319,6 +319,7 @@
     const items = [];
     for (const t of game.tiles) if (t.tower && !(dragging && this.drag.from === t.i)) items.push([G.tiles[t.i].tower[1], 0, t.i]);
     for (const m of game.monsters) if (m.alive) items.push([m.y, 1, m]);
+    if (this.seatItem) { const sm = this.seatItem(game); if (sm) items.push([sm.y + 0.01, 1, sm]); }   // [v5.9] 입구에 앉은 다음 보스(render15) — 같은 자리에서 나온 잡몹보다 앞
     items.push([this.pawnPose(game.pawn, 1).y + 0.5, 2]);
     if (game.partner) items.push([this.pawnPose(game.partner, 1).y + 0.6, 3]);
     items.sort((a, b) => a[0] - b[0]);

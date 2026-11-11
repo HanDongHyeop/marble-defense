@@ -1,9 +1,29 @@
 // 소리 — Web Audio 실시간 합성(파일 없음). 효과음 + 칩튠 배경음(로비 · 전투 · 보스).
 // 나중에 파일 소리로 바꾸려면 같은 함수 이름으로 갈아끼우면 된다.
 (function (root) {
+  // [v5.9] 탄 모양 → 발사음(계열 · 단계 무관, 탄 그림 종류 기준 = behave.js attack의 shot kind)
+  //   총알 bullet(개틀링) · 빔 beam(레일건 · 프리즘) · 화염 방사 flame(화염 4~6) · 고체 덩어리 lump(화염 1~3 불덩이 · 채굴 돌/금괴 · 탐욕 동전)
+  //   날카로운 탄 sharp(빙결 고드름 · 폭군 가시 · 맹독 1~3 침 · 봉화 화살) · 마법 구슬 magic(성광 · 소환 · 콤보 · 성장) · 전기 electric(번개) · 액체 liquid(부식 · 맹독 4~6 독 폭탄)
+  const SHOT_OF = (type, t) => ({ gatling: 'bullet', railgun: null, prism: 'beam', fire: t <= 3 ? 'lump' : 'flame', mining: 'lump', greed: 'lump',
+    ice: 'sharp', tyrant: 'sharp', beacon: 'sharp', poison: t <= 3 ? 'sharp' : 'liquid', light: 'magic', summon: 'magic', combo: 'magic', growth: 'magic', bolt: 'electric', corrode: 'liquid' })[type];   // 레일건은 rail()이 빔 소리
+  // 크기: 파일은 모두 −20dBFS로 맞춤(tools/build_shot59.py). 한 발 = 주사위보다 약 −10dB · 여러 포탑이 쏘는 흐름 = 약 −5dB(첨부 영상: 발사음 흐름이 배경음과 비슷 · 큰 효과음보다 5dB쯤 작음)
+  const SHOT_GAIN = { bullet: 0.165, beam: 0.18, flame: 0.16, lump: 0.125, sharp: 0.17, magic: 0.17, electric: 0.17, liquid: 0.16 };   // 측정(파일 RMS + 게인): 종류마다 주사위(−27.8dB)보다 약 −10dB
+  const FILES = ['dice', 'coin', 'boom', 'build', 'merge', 'tierup', 'thud', 'strike', 'boss', 'win', 'lose', 'jackpot', 'freeze', 'thunder', 'card'];
+  const D = () => root.DATA;
   const BGM_VOL = 1;   // [v5.6] 곡 크기를 파일에 구워 넣음(평소 −31 · 보스 −27 · 로비 −32.5 LUFS) — 아이폰은 소리 크기(volume)를 못 바꿔 늘 1로 났음(전 0.4는 PC에만 먹었다)   // [v4.8] 배경음 크기(전 0.45). 곡별 크기는 파일에서 맞춤(tools/audio_master.py)
   class Audio {
-    constructor() { this.ctx = null; this.on = true; this.musicOn = true; this.vol = 0.55; this.last = {}; this.bgm = null; }
+    constructor() {
+      this.ctx = null; this.on = true; this.musicOn = true; this.vol = 0.55; this.last = {}; this.bgm = null;
+      // [v5.9] 아이폰 본편 무음 고침 — 첫 터치를 pointerdown에서만 받았는데, 터치의 pointerdown은 '소리 허용 동작'이 아니다(pointerup · touchend · click만).
+      //   그래서 AudioContext가 잠긴 채 · 배경음 play()가 조용히 거절됐다(로비는 v5.7에 같은 이유로 고침). → 손을 뗄 때마다 다시 켬(잠겨 있을 때만 일함)
+      if (typeof document !== 'undefined') { const go = () => this.unlock(); for (const ev of ['pointerup', 'touchend', 'click', 'keydown']) document.addEventListener(ev, go, true); }
+    }
+    unlock() {
+      this.init();
+      const c = this.ctx; if (!c) return;
+      if (c.state !== 'running') { try { const p = c.resume(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* 막힘 */ } }
+      if (!this._warm) { try { const b = c.createBuffer(1, 1, 22050), s = c.createBufferSource(); s.buffer = b; s.connect(c.destination); s.start(0); this._warm = true; } catch (e) { /* 없음 */ } }   // 빈 소리 한 번 = 사파리가 출력을 엶
+    }
     init() {
       // 첫 손가락 입력 때: 막혀 있던 배경음 재생 다시 시도(자동 재생 정책)
       if (this.tracks && this.bgmKind && this.tracks[this.bgmKind] && this.tracks[this.bgmKind].paused) { const a = this.tracks[this.bgmKind]; const p = a.play(); if (p && p.catch) p.catch(() => {}); this.fade(a, this.musicOn && this.on ? BGM_VOL : 0); }
@@ -21,6 +41,9 @@
         const len = this.ctx.sampleRate * 0.5, buf = this.ctx.createBuffer(1, len, this.ctx.sampleRate), d = buf.getChannelData(0);
         for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
         this.noiseBuf = buf;
+        // [v5.9] 효과음 · 탄 발사음 = Web Audio 버퍼(아이폰은 Audio 요소의 volume을 무시해 늘 최대 크기로 났다 → 버퍼 + 게인은 크기가 지켜짐)
+        this.shotBus = this.ctx.createGain(); this.shotBus.gain.value = 1; this.shotBus.connect(this.sfxBus);
+        for (const n of FILES.concat(Object.keys(SHOT_GAIN).map(k => 'shot_' + k))) this.loadBuf(n);
       } catch (e) { this.ctx = null; }
     }
     setOn(v) { this.on = v; if (this.master) this.master.gain.value = v ? this.vol : 0; if (this.tracks && this.bgmKind && this.tracks[this.bgmKind]) this.fade(this.tracks[this.bgmKind], v && this.musicOn ? BGM_VOL : 0); }
@@ -48,8 +71,24 @@
     }
     // ---------------------------------------------------------- 효과음 파일(assets/sfx/*.mp3) — 있으면 파일, 없으면 아래 합성
     // [v4.1] rate < 1 이면 음을 낮춰 재생(preservesPitch 끔) — 자주 나는 높은 소리(동전 · 얼음)를 덜 날카롭게
+    loadBuf(name) {
+      if (!this.ctx) return null;
+      const B = this.bufs || (this.bufs = {});
+      if (name in B) return B[name];
+      B[name] = null;
+      fetch('assets/sfx/' + name + '.mp3').then(r => (r.ok ? r.arrayBuffer() : Promise.reject(r.status)))
+        .then(ab => new Promise((res, rej) => { const p = this.ctx.decodeAudioData(ab, res, rej); if (p && p.catch) p.catch(rej); }))
+        .then(b => { B[name] = b; }, () => { B[name] = false; });
+      return null;
+    }
+    playBuf(b, gain, rate, bus, delay) {
+      const c = this.ctx, s = c.createBufferSource(), g = c.createGain();
+      s.buffer = b; if (rate) s.playbackRate.value = rate; g.gain.value = gain;
+      s.connect(g); g.connect(bus || this.master); s.start(c.currentTime + (delay || 0));
+    }
     file(name, vol, rate) {
       if (!this.on || this.noSfx) return false;
+      if (this.ctx && this.ctx.state === 'running') { const b = this.loadBuf(name); if (b) { this.playBuf(b, (vol == null ? 0.7 : vol) * 1.4, rate || 1); return true; } }   // master가 this.vol을 곱함 = 예전 a.volume(vol × vol × 1.4)과 같은 크기
       if (!this.pool) this.pool = {};
       let p = this.pool[name];
       if (!p) {
@@ -64,7 +103,8 @@
     // ---------------------------------------------------------- 효과음
     click() { if (!this.gate('click', 0.05)) return; this.tone({ f: 494, f2: 587, d: 0.06, v: 0.07, wave: 'triangle' }); }   // [v4.8] 첫 터치에 나는 소리: 880→1320Hz 사각파 → 낮은 삼각파(click 파일은 없어 합성만 씀)
     error() { if (!this.gate('err', 0.2)) return; this.tone({ f: 220, f2: 160, d: 0.16, v: 0.15, wave: 'sawtooth' }); }
-    dice(dbl) { if (this.file('dice', 0.5, 0.86)) { if (dbl) { this.tone({ f: 660, d: 0.12, v: 0.1, delay: 0.42, wave: 'triangle' }); this.tone({ f: 880, d: 0.2, v: 0.1, delay: 0.52, wave: 'triangle' }); } return; }
+    // [v5.9] 주사위 소리 −30%(사용자) — 파일 0.5 → 0.35 · 더블 음 0.1 → 0.07, 아래 diceShow도 × 0.7
+    dice(dbl) { if (this.file('dice', 0.35, 0.86)) { if (dbl) { this.tone({ f: 660, d: 0.12, v: 0.07, delay: 0.42, wave: 'triangle' }); this.tone({ f: 880, d: 0.2, v: 0.07, delay: 0.52, wave: 'triangle' }); } return; }
       for (let k = 0; k < 5; k++) this.noise({ f: 2400, d: 0.05, v: 0.18, delay: k * 0.06, type: 'bandpass' });
       this.tone({ f: 660, f2: 990, d: 0.1, v: 0.12, delay: 0.32 });
       if (dbl) { this.tone({ f: 990, d: 0.12, v: 0.14, delay: 0.42 }); this.tone({ f: 1320, d: 0.2, v: 0.14, delay: 0.52 }); }
@@ -72,38 +112,35 @@
     // v4.1 주사위 박자: 받침에서 떠오를 때 부드러운 휙(0) → 받침에 닿을 때 나무 딱(0.42 · 0.47) → 결과(0.52)
     // [사용자: 주사위 소리 작게 · 살짝 낮게] 딱 = 대역 1.6k→0.6k(이전 3.2k), 결과 = 삼각파 G5 · D6(이전 사각파 C6 · G6)
     diceShow(dbl, ctrl) {
-      this.noise({ f: 500, f2: 1100, d: 0.22, v: 0.05, type: 'bandpass' });
-      [0.42, 0.47].forEach((t, k) => { this.noise({ f: 1600, f2: 600, d: 0.05, v: 0.1 - k * 0.035, type: 'bandpass', delay: t }); this.tone({ f: 260 - k * 30, d: 0.05, v: 0.06, wave: 'triangle', delay: t }); });
-      if (dbl) [0, 4, 7, 12].forEach((s2, k) => this.tone({ f: 523 * Math.pow(2, s2 / 12), d: 0.18, v: 0.1, delay: 0.52 + k * 0.06, wave: 'triangle' }));
-      else { this.tone({ f: 784, d: 0.16, v: 0.09, delay: 0.52, wave: 'triangle' }); this.tone({ f: 1175, d: 0.24, v: 0.06, delay: 0.57, wave: 'triangle' }); }
-      if (ctrl) this.tone({ f: 440, f2: 880, d: 0.25, v: 0.08, wave: 'triangle', delay: 0.6 });
+      const K = 0.7, tone = o => this.tone(Object.assign(o, { v: o.v * K })), noise = o => this.noise(Object.assign(o, { v: o.v * K }));   // [v5.9] −30%
+      noise({ f: 500, f2: 1100, d: 0.22, v: 0.05, type: 'bandpass' });
+      [0.42, 0.47].forEach((t, k) => { noise({ f: 1600, f2: 600, d: 0.05, v: 0.1 - k * 0.035, type: 'bandpass', delay: t }); tone({ f: 260 - k * 30, d: 0.05, v: 0.06, wave: 'triangle', delay: t }); });
+      if (dbl) [0, 4, 7, 12].forEach((s2, k) => tone({ f: 523 * Math.pow(2, s2 / 12), d: 0.18, v: 0.1, delay: 0.52 + k * 0.06, wave: 'triangle' }));
+      else { tone({ f: 784, d: 0.16, v: 0.09, delay: 0.52, wave: 'triangle' }); tone({ f: 1175, d: 0.24, v: 0.06, delay: 0.57, wave: 'triangle' }); }
+      if (ctrl) tone({ f: 440, f2: 880, d: 0.25, v: 0.08, wave: 'triangle', delay: 0.6 });
     }
     // 칸을 밟을 때마다 음이 반음씩 올라가 남은 칸이 줄어드는 긴장감(마지막 칸은 낮고 묵직하게)
     hopStep(n, last) { if (!this.gate('hop', 0.04)) return; if (last) { this.tone({ f: 300, f2: 190, d: 0.16, v: 0.22, wave: 'triangle' }); this.noise({ f: 800, f2: 180, d: 0.14, v: 0.17 }); return; } this.tone({ f: 392 * Math.pow(2, Math.min(12, n) / 12), d: 0.05, v: 0.07, wave: 'triangle' }); }
     hop(last) { if (!this.gate('hop', 0.05)) return; this.tone({ f: last ? 520 : 700, f2: last ? 300 : 900, d: last ? 0.12 : 0.05, v: last ? 0.16 : 0.07, wave: 'triangle' }); }
-    // [v4.8] 발사음: 후반에 초당 25번까지 늘어나 시끄러움의 주범 → 전체 초당 6번까지 · 단계로 커지지 않음 · 높은 음과 톱니파를 낮춤
+    // [v5.9] 탄 발사음 = 탄 모양 8종(계열 · 단계 무관). 사용자(2026-11-11): '탄의 형태 종류를 구분해 그에 맞는 효과음 — 불 포탑 1단계는 고체 탄 소리였다가 6단계 화염이면 화염 방사 소리.
+    //   계속 나는 소리라 다른 효과음보다 아주 작게(첨부 영상 정도)'. 파일 = assets/sfx/shot_<종류>.mp3(tools/build_shot59.py) · 크기 = SHOT_GAIN
+    //   한 번 공격에 탄이 여러 발이면 최대 3번(0.07초 간격) · 종류마다 0.07초 · 전체 초당 약 14번까지 · 음 높이 ±5% 흔들어 기계 소리 반복을 피함
     fire(type, tier) {
-      if (!this.gate('f_all', 0.16)) return;
-      if (!this.gate('f_' + type, 0.3)) return;
-      const v = 0.055;
-      if (type === 'fire') { this.noise({ f: 700, f2: 260, d: 0.16, v: v * 1.4 }); this.tone({ f: 170, f2: 90, d: 0.12, v: v, wave: 'triangle' }); }
-      else if (type === 'gatling') { this.noise({ f: 1200, f2: 600, d: 0.05, v: v * 1.2, type: 'bandpass' }); this.tone({ f: 110, d: 0.04, v: v * 0.8, wave: 'triangle' }); }
-      else if (type === 'bolt') { this.tone({ f: 620, f2: 280, d: 0.12, v: v * 0.8, wave: 'triangle' }); this.noise({ f: 1500, d: 0.07, v: v * 0.5, type: 'bandpass' }); }
-      else if (type === 'light') { this.tone({ f: 587, f2: 784, d: 0.14, v: v * 0.8, wave: 'sine' }); }
-      else if (type === 'ice') { this.tone({ f: 660, f2: 880, d: 0.1, v: v * 0.7, wave: 'triangle' }); this.noise({ f: 1500, d: 0.05, v: v * 0.3, type: 'bandpass' }); }
-      else if (type === 'poison' || type === 'corrode') { this.noise({ f: 1000, f2: 480, d: 0.12, v: v * 1.1, type: 'bandpass' }); this.tone({ f: 360, f2: 240, d: 0.08, v: v * 0.6, wave: 'triangle' }); }
-      else if (type === 'railgun') { this.tone({ f: 220, f2: 640, d: 0.12, v: v, wave: 'triangle' }); this.noise({ f: 1200, d: 0.12, v: v * 0.9 }); }
-      else if (type === 'mining' || type === 'greed') { this.tone({ f: 587, d: 0.05, v: v * 0.7, wave: 'triangle' }); this.tone({ f: 784, d: 0.07, v: v * 0.5, delay: 0.04, wave: 'triangle' }); }
-      else if (type === 'summon') { this.tone({ f: 494, f2: 740, d: 0.16, v: v * 0.8, wave: 'sine' }); }
-      else if (type === 'combo') { this.tone({ f: 587, d: 0.05, v: v * 0.8, wave: 'triangle' }); this.tone({ f: 784, d: 0.06, v: v * 0.8, delay: 0.06, wave: 'triangle' }); }
-      else if (type === 'beacon') { this.noise({ f: 1300, f2: 500, d: 0.12, v: v * 1.1, type: 'bandpass' }); this.tone({ f: 440, f2: 300, d: 0.08, v: v * 0.6, wave: 'triangle' }); }
-      else if (type === 'growth') { this.tone({ f: 698, f2: 880, d: 0.14, v: v * 0.8, wave: 'sine' }); }
-      else if (type === 'prism') { this.tone({ f: 660, f2: 990, d: 0.1, v: v * 0.6, wave: 'sine' }); }
-      else if (type === 'tyrant') { this.tone({ f: 220, f2: 100, d: 0.14, v: v * 1.1, wave: 'triangle' }); this.noise({ f: 700, d: 0.08, v: v * 0.9 }); }
+      const k = SHOT_OF(type, tier); if (!k) return;
+      this.shot(k, type === 'gatling' ? 3 : Math.min(3, (D() && D().TIER && D().TIER.shots ? D().TIER.shots[tier] : 1) || 1));
+    }
+    shotOf(type, tier) { return SHOT_OF(type, tier); }   // 시험용(test/unit_v59.js)
+    shot(k, n) {
+      if (!this.on || this.noSfx || !this.ctx || this.ctx.state !== 'running') return;
+      const b = this.loadBuf('shot_' + k); if (!b) return;
+      for (let j = 0; j < (n || 1); j++) {
+        if (!this.gate('s_' + k + j, 0.07) || !this.gate('s_all' + j, 0.07 / (j ? 1 : 1))) continue;
+        this.playBuf(b, SHOT_GAIN[k] * (0.85 + Math.random() * 0.3), 0.95 + Math.random() * 0.1, this.shotBus, j * 0.07);
+      }
     }
     react(kind) { if (!this.gate('react', 0.25)) return; this.tone({ f: 220, f2: 620, d: 0.22, v: 0.1, wave: 'triangle' }); this.noise({ f: 1500, f2: 500, d: 0.26, v: 0.1, type: 'bandpass' }); }
     freeze() { if (!this.gate('f_freeze', 0.16)) return; if (this.file('freeze', 0.32, 0.8)) return; this.tone({ f: 1400, f2: 2000, d: 0.2, v: 0.06, wave: 'sine' }); this.noise({ f: 3500, d: 0.15, v: 0.06, type: 'bandpass' }); }
-    rail() { if (!this.gate('rail', 0.24)) return; this.tone({ f: 560, f2: 130, d: 0.22, v: 0.09, wave: 'triangle' }); this.noise({ f: 1500, f2: 400, d: 0.18, v: 0.09 }); }   // [v4.8] 높은 톱니파(1200Hz)가 초당 3.6번 났음
+    rail() { if (this.ctx && this.bufs && this.bufs.shot_beam) { this.shot('beam', 1); return; } if (!this.gate('rail', 0.24)) return; this.tone({ f: 560, f2: 130, d: 0.22, v: 0.09, wave: 'triangle' }); this.noise({ f: 1500, f2: 400, d: 0.18, v: 0.09 }); }   // [v4.8] 높은 톱니파(1200Hz)가 초당 3.6번 났음
     bell() { if (!this.gate('bell', 0.3)) return; [0, 7, 12].forEach((s2, k) => this.tone({ f: 784 * Math.pow(2, s2 / 12), d: 0.6, v: 0.08, wave: 'sine', delay: k * 0.02 })); }
     boom() { if (this.gate('f_boom', 0.09) && this.file('boom', 0.55)) return; if (!this.gate('boom', 0.06)) return; this.noise({ f: 1400, f2: 120, d: 0.45, v: 0.35 }); this.tone({ f: 110, f2: 40, d: 0.35, v: 0.25, wave: 'sine' }); }
     kill(e) { if (!this.gate('kill', 0.1)) return; const big = e && e.big; this.noise({ f: big ? 600 : 900, f2: 160, d: big ? 0.2 : 0.12, v: big ? 0.16 : 0.1 }); this.tone({ f: big ? 160 : 240, f2: big ? 70 : 110, d: big ? 0.18 : 0.1, v: big ? 0.14 : 0.09, wave: 'sine' }); if (e && e.gold && this.gate('killCoin', 0.14)) this.coin(1, true); }

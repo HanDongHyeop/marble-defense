@@ -5,34 +5,36 @@
 // 흐름: 경고(화면 = ui.js #warnFx) → 입구 굴 자리에 수정이 솟음(0.25 ~ 0.9초, 고리 · 빛) → 보스가 한 바퀴 → 절반 목표선(금 깃발)
 //   → 절반 전에 잡으면 목표선이 금빛으로 터짐 / 지나치면 목표선이 회색 ✕ → 수정에 닿으면 금 간 수정 + 조각 · 흔들림 → 사라짐
 //   (위 게이지로 날아가는 조각 · 숫자 변화는 DOM 쪽 ui.js가 그림 — 화면 맨 위 HUD까지 가야 하므로)
+// [v5.9] 절반 목표선(점선 · ◆) 삭제 — 사용자(2026-11-11): '중간 지점은 유저가 인지하지 않아도 돼(나중에 첫 보스 튜토리얼로) · 화면 UI가 너무 복잡'.
+//   규칙(절반 전 처치 = 카드 등급 UP)은 그대로 · 달성하면 수정 자리에서 금빛이 터지고 '빠른 처치!' 알림만. 수정은 보스 소개(ui.js 3.4초)가 끝난 뒤 솟음
 // 그리기 원칙: 오프스크린 캔버스 캐시 없음 · 'lighter' 없음
 (function (root) {
   const R = root.Renderer.prototype, G = root.GEOM, D = root.DATA;
   const TAU = Math.PI * 2, rnd = (a, b) => a + Math.random() * (b - a), clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const eb = t => { const c = 1.7; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };
   const PLUM = '#2b1426', VIO = '#d070ff';
-  const ENT = () => G.lanePoint(0, 0), HALF = () => G.lanePoint(D.ECON.crystal.half, 0);
+  const ENT = () => G.lanePoint(0, 0);
 
-  R.cs14 = function () { return this._cs14 || (this._cs14 = { cr: null, half: null }); };
+  R.cs14 = function () { return this._cs14 || (this._cs14 = { cr: null, goalT: null }); };
 
   const base14 = R.consume;
   R.consume = function (game, events, audio) {
     const S = this.cs14(), A = audio || this._A14; this._A14 = A; const keep = [];
     for (const e of events) {
-      if (e.ev === 'boss') { this.shake = Math.max(this.shake || 0, 10); if (A && A.boss) A.boss(); continue; }   // 옛 가운데 띠 대신 화면 경고(ui.js)
-      if (e.ev === 'crystal') { S.cr = { t0: this.time, state: 'on' }; S.half = { t0: this.time, state: 'on' }; continue; }
-      if (e.ev === 'bossHalf') { if (S.half) { S.half.state = 'miss'; S.half.t1 = this.time; } if (A && A.error) A.error(); continue; }
+      if (e.ev === 'boss') { this.shake = Math.max(this.shake || 0, 10); continue; }   // 옛 가운데 띠 대신 화면 경고 · 보스 소개(ui.js — 울음도 거기서 얼굴이 나올 때)
+      if (e.ev === 'crystal') { S.cr = { t0: this.time + (this.introLen == null ? 3.3 : this.introLen), state: 'on' }; continue; }   // [v5.9] 보스 소개가 끝난 뒤 솟음
+      if (e.ev === 'bossHalf') continue;   // [v5.9] 절반 표시 · 소리 없음(규칙만 남음)
       if (e.ev === 'bossGoal') {
-        if (S.half) { S.half.state = 'goal'; S.half.t1 = this.time; }
-        const [x, y] = HALF(); this.ring(x, y, 60, '#ffd23a', 0.8, 7); this.ring(x, y, 36, '#ffffff', 0.5, 4);
+        S.goalT = this.time;
+        const [x, y0] = ENT(), y = y0 - 50; this.ring(x, y, 60, '#ffd23a', 0.8, 7); this.ring(x, y, 36, '#ffffff', 0.5, 4);
         for (let q = 0; q < 22; q++) { const a = q / 22 * TAU, sp = rnd(140, 260); this.part({ x, y: y - 20, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp * 0.7 - 50, grav: 240, drag: 1.4, life: rnd(0.6, 0.9), size: rnd(4, 7), col: q % 3 ? '#ffd23a' : '#ffffff', kind: 'star', vr: 6 }); }
         if (this.v47) this.v47().ribbons.length = 0;   // 앞에 줄 선 보스 스킬 알림을 비우고 바로
-        this.ribbon('보스 목표 달성!', '절반 전에 처치 — 이번 카드 등급 UP', true, 'key', { col: '#ffd23a', pri: 1, dur: 2.4 });
+        this.ribbon('빠른 처치!', '보스를 빨리 잡아 이번 카드 등급 UP', true, 'key', { col: '#ffd23a', pri: 1, dur: 2.4 });
         if (A && A.jackpot) A.jackpot();
         if (S.cr) { S.cr.state = 'fade'; S.cr.t1 = this.time; }
         continue;
       }
-      if (e.ev === 'bossGoalMiss') { if (S.cr && S.cr.state === 'on') { S.cr.state = 'fade'; S.cr.t1 = this.time; } if (S.half && S.half.state === 'on') S.half = null; keep.push(e); continue; }
+      if (e.ev === 'bossGoalMiss') { if (S.cr && S.cr.state === 'on') { S.cr.state = 'fade'; S.cr.t1 = this.time; } keep.push(e); continue; }
       if (e.ev === 'bossDown') { if (S.cr && S.cr.state === 'on') { S.cr.state = 'fade'; S.cr.t1 = this.time; } keep.push(e); continue; }   // 목표선은 바로 뒤 bossGoal / bossGoalMiss가 정리
       if (e.ev === 'crystalBreak') {
         const [x, y] = ENT();
@@ -43,10 +45,9 @@
         if (this.v47) this.v47().ribbons.length = 0;
         this.ribbon('수정이 깨졌다!', `몬스터 수용치 ${e.from} → ${e.to}`, false, null, { col: '#ff5a8a', pri: 1, dur: 2.6 });
         if (A) { try { A.boom && A.boom(); A.noise && A.noise({ f: 2400, f2: 600, d: 0.5, v: 0.22 }); } catch (er) { /* 소리 없음 */ } }
-        if (S.half) S.half = null;
         continue;
       }
-      if (e.ev === 'bossLeave') { if (S.cr && S.cr.state === 'on') { S.cr.state = 'fade'; S.cr.t1 = this.time; } if (S.half && S.half.state === 'on') S.half = null; keep.push(e); continue; }
+      if (e.ev === 'bossLeave') { if (S.cr && S.cr.state === 'on') { S.cr.state = 'fade'; S.cr.t1 = this.time; } keep.push(e); continue; }
       keep.push(e);
     }
     base14.call(this, game, keep, audio);
@@ -56,6 +57,7 @@
   R.crystal14 = function (c, game) {
     const S = this.cs14(), C = S.cr; if (!C) return;
     const t = this.time, a = t - C.t0, [x, y] = ENT();
+    if (C.state === 'on' && a < 0) return;   // 보스 소개 중
     let sc = eb(clamp((a - 0.25) / 0.6, 0, 1)), op = 1, crack = false;
     if (C.state === 'fade') { const q = (t - C.t1) / 0.8; op = 1 - q; sc *= 1 + q * 0.15; if (q >= 1) { S.cr = null; return; } }
     if (C.state === 'break') { const q = (t - C.t1) / 1.4; crack = true; op = q < 0.6 ? 1 : 1 - (q - 0.6) / 0.4; if (q >= 1) { S.cr = null; return; } }
@@ -75,36 +77,13 @@
     if (C.state === 'on' && a < 3) { c.save(); c.globalAlpha = clamp((a - 0.5) / 0.3, 0, 1) * clamp((3 - a) / 0.4, 0, 1); c.font = '700 18px Jua, sans-serif'; c.textAlign = 'center'; this.outlined(c, '수용치 수정', x, y - 128, '#f6d0ff', PLUM, 5); c.restore(); }
   };
 
-  // ------------------------------------------------------------ 절반 목표선(금 깃발) — 보스 진행을 판 위에서 바로 읽게
-  R.half14 = function (c, game) {
-    const S = this.cs14(), H = S.half; if (!H) return;
-    const t = this.time, a = t - H.t0, [x, y] = HALF(), b = game.boss;
-    let op = clamp((a - 0.6) / 0.4, 0, 1), miss = H.state === 'miss', goal = H.state === 'goal';
-    if (miss || goal) { const q = (t - H.t1) / (goal ? 1.2 : 2.2); op *= q < 0.7 ? 1 : 1 - (q - 0.7) / 0.3; if (q >= 1) { S.half = null; return; } }
-    if (op <= 0) return;
-    const col = miss ? '#9a90b0' : '#ffd23a', pu = 0.5 + 0.5 * Math.sin(t * 6);
-    c.save(); c.globalAlpha = op;
-    // 길을 가로지르는 점선
-    c.lineCap = 'round'; c.setLineDash([10, 8]); c.lineDashOffset = -t * 30;
-    for (const [cc, w] of [[PLUM, 9], [col, 5]]) { c.strokeStyle = cc; c.lineWidth = w; c.beginPath(); c.moveTo(x - 60, y + 22); c.lineTo(x, y + 2); c.lineTo(x + 60, y + 22); c.stroke(); }
-    c.setLineDash([]);
-    // (깃발 · 글씨는 위 보스 체력 바에 가려져서 뺌 — 바로 위 보스 진행 줄의 ◆가 같은 자리를 가리킴) 길 위 ◆
-    const dy = miss ? 0 : Math.sin(t * 5) * 2;
-    c.fillStyle = PLUM; c.beginPath(); c.moveTo(x, y - 14 + dy); c.lineTo(x + 13, y + 2 + dy); c.lineTo(x, y + 18 + dy); c.lineTo(x - 13, y + 2 + dy); c.closePath(); c.fill();
-    c.fillStyle = col; c.beginPath(); c.moveTo(x, y - 9 + dy); c.lineTo(x + 8, y + 2 + dy); c.lineTo(x, y + 13 + dy); c.lineTo(x - 8, y + 2 + dy); c.closePath(); c.fill();
-    if (!miss && !goal) this.glow(c, x, y + 2, 40 + pu * 8, '#ffd23a', 0.3 + 0.15 * pu);
-    if (miss) { c.strokeStyle = '#ff5a5a'; c.lineWidth = 4; c.beginPath(); c.moveTo(x - 9, y - 7); c.lineTo(x + 9, y + 11); c.moveTo(x + 9, y - 7); c.lineTo(x - 9, y + 11); c.stroke(); }
-    c.restore();
-  };
-
-  // 목표 달성 연출이 카드 창에 바로 가리지 않게 1.3초 기다림(ui.js가 cardBusy()를 보고 카드 창을 늦게 엶)
+  // 빠른 처치 연출이 카드 창에 바로 가리지 않게 1.3초 기다림(ui.js가 cardBusy()를 보고 카드 창을 늦게 엶)
   const busy14 = R.cardBusy;
-  R.cardBusy = function () { const H = this.cs14().half; return (H && H.state === 'goal' && this.time - H.t1 < 1.3) || (busy14 ? busy14.call(this) : false); };
+  R.cardBusy = function () { const S = this.cs14(); return (S.goalT != null && this.time - S.goalT < 1.3) || (busy14 ? busy14.call(this) : false); };
 
   const fx14 = R.drawFx;
   R.drawFx = function (c, layer) {
     const g = this._game;
-    if (layer === 'under' && g) { fx14.call(this, c, layer); this.half14(c, g); return; }
     if (layer === 'over' && g) this.crystal14(c, g);
     fx14.call(this, c, layer);
   };

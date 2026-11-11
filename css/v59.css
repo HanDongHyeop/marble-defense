@@ -1,0 +1,30 @@
+/* v5.9 보스 소개(경고 띠 → 보스 얼굴 · 이름 · 기술) — 사용자(2026-11-11): '보스 등장 시 어떤 보스인지 설명도(두 번째 영상처럼)'
+   상태(3.3초): 0 ~ 1.0 = 'WARNING' 깜빡임(띠가 밀려 들어옴 · 판이 어두워짐) / 1.05 = 가운데가 보스 얼굴로 뒤집혀 나옴 · 위에 이름(금색) · 기술 한 줄 · 규칙
+   / 2.95 = 얼굴이 입구 보스 자리로 날아감(ui.js) · 띠가 위아래로 접히며 닫힘 */
+/* 빨간 가장자리 맥박은 'WARNING' 동안만 두 번(얼굴 · 설명이 나올 땐 차분하게) */
+#warnFx.go .vig { animation: wVig .52s ease-in-out 2; }
+#warnFx .dim { position: absolute; inset: 0; background: #12061a; opacity: 0; }
+#warnFx.go .dim { animation: wDim 3.3s ease both; }
+@keyframes wDim { 0% { opacity: 0; } 25% { opacity: .58; } 88% { opacity: .58; } 100% { opacity: 0; } }
+
+#warnFx .band { top: 39%; padding: 0; gap: 0; }
+#warnFx.go .band { animation: wBand9 3.3s cubic-bezier(.2,.9,.3,1) both; }
+@keyframes wBand9 { 0% { transform: translateX(110%) skewY(-4deg); } 10% { transform: translateX(0) skewY(-4deg); } 91% { transform: translateX(0) skewY(-4deg); opacity: 1; } 100% { transform: translateX(0) skewY(-4deg) scaleY(0); opacity: 0; } }   /* 접힘은 얼굴이 날아간 뒤(2.95초 →) */
+#warnFx .mid { position: relative; align-self: stretch; height: 176px; display: grid; place-items: center; transform: skewY(4deg); }
+#warnFx .mid > * { grid-area: 1 / 1; }
+#warnFx b.wt { margin: 0; animation: wBlink .35s steps(2) 3, wOut .18s 1s ease-in forwards; }
+@keyframes wOut { to { opacity: 0; transform: scale(.6); } }
+#warnImg { height: 168px; width: auto; opacity: 0; transform: perspective(400px) rotateY(90deg) scale(.6); filter: drop-shadow(0 4px 0 #2b0410) drop-shadow(0 0 10px #00000088); }
+#warnFx.go #warnImg { animation: wImg .45s 1.05s cubic-bezier(.2,1.4,.4,1) forwards; }
+@keyframes wImg { 60% { opacity: 1; transform: perspective(400px) rotateY(-12deg) scale(1.12); } 100% { opacity: 1; transform: none; } }
+
+/* 이름 · 기술 · 규칙(띠 바로 위) */
+#warnFx .info { position: absolute; left: 16px; right: 16px; bottom: calc(61% + 22px); display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; opacity: 0; }
+#warnFx.go .info { animation: wInfo 3.3s ease both; }
+@keyframes wInfo { 0%, 33% { opacity: 0; transform: translateY(12px); } 42% { opacity: 1; transform: none; } 88% { opacity: 1; } 100% { opacity: 0; } }
+#warnFx #warnName { font: 400 50px/1 Jua, sans-serif; color: #ffd23a; letter-spacing: 2px; margin: 0; text-shadow: 0 4px 0 #2b0410, 0 0 18px #000; animation: none; }
+#warnFx #warnDesc { font: 400 23px/1.3 Jua, sans-serif; color: #fff; max-width: 600px; text-wrap: balance; word-break: keep-all; text-shadow: 0 3px 0 #2b0410, 0 0 10px #000; }
+#warnFx small { font: 400 17px Jua, sans-serif; color: #ffb8c2; margin: 0; padding: 0; text-shadow: 0 2px 0 #2b0410; }
+/* 입구 자리로 날아가는 얼굴(띠가 접혀도 같이 접히지 않게 띠 밖 복제본) */
+.warnFly { position: fixed; z-index: 61; pointer-events: none; filter: drop-shadow(0 4px 0 #2b0410) drop-shadow(0 0 10px #00000088); }
+@media (prefers-reduced-motion: reduce) { #warnFx.go #warnImg { animation-duration: .01s; animation-delay: 1s; } }

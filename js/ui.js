@@ -66,8 +66,6 @@
       $('p2Btn').addEventListener('pointerdown', e => { e.preventDefault(); s.init(); if (this.g && this.g.partnerPress && this.app.cmd('partnerPress')) s.click(); else s.error(); });
       $('truckBtn').addEventListener('click', () => { s.init(); if (!(this.g && this.app.cmd('callTruck'))) s.error(); });
       $('pauseBtn').addEventListener('click', () => { s.init(); s.click(); this.pauseMenu(); });
-      // [v5.7] 기다림 건너뛰기: 이번 웨이브 몬스터(보스 포함)를 다 잡았을 때만 켜짐(sim canSkip)
-      $('skipBtn').addEventListener('click', () => { s.init(); if (this.g && this.g.canSkip() && this.app.cmd('skipWait')) { s.click(); if (s.upgrade) s.upgrade(); } else s.error(); });
       $('deckRow').addEventListener('click', e => {
         const b = e.target.closest('.deck'); if (!b || !this.g) return; s.init();
         if (this.app.cmd('upgrade', [b.dataset.k])) { b.classList.remove('flash'); void b.offsetWidth; b.classList.add('flash'); }
@@ -223,7 +221,7 @@
       let tt = g.finalT != null ? Math.max(0, 90 - g.finalT) : bl ? Math.max(0, (24 - g.boss.f) / Math.max(0.05, D.ECON.monSpeed * g.boss.spd)) : g.boss && g.boss.alive && g.bossT < D.ECON.bossHold ? Math.max(0, D.ECON.bossHold - g.bossT) : Math.max(0, 21 - g.roundT);   // [v5.6] 보스전 = 보스 제한 시간 → [v5.8] 수정에 닿기까지(보통 속도 기준)
       if (g.round === 0) tt = 0;
       $('timerTxt').textContent = `${Math.floor(tt / 60)}:${String(Math.floor(tt % 60)).padStart(2, '0')}`;
-      { const ok = !!g.canSkip() && !(this.app.net && this.app.net.role === 'guest'), sb = $('skipBtn'); if (sb.disabled === ok) { sb.disabled = !ok; sb.classList.toggle('on', ok); if (ok) { sb.classList.remove('pop'); void sb.offsetWidth; sb.classList.add('pop'); } } }
+      $('timerPill').classList.toggle('clear', g.clearAt != null && g.round > 0 && !g.over && !g.boss);   // [v5.9] 다 잡음 → 3초 뒤 다음 웨이브(시간 칸이 금빛)
       // 카드 칩
       const chips = g.cards.map(c => `<span class="chip ${D.CARDS[c].g}">${D.CARDS[c].name}</span>`).join('');
       if (chips !== this._chips) { $('chips').innerHTML = chips; this._chips = chips; }
@@ -234,13 +232,9 @@
         $('bossName').textContent = D.BOSSES[b.boss].name;
         $('bossFill').style.width = Math.max(0, b.hp / b.maxHp * 100) + '%';
         const en = g.bossT > D.ECON.enrage && D.BOSSES[b.boss].kind === 'disrupt';
-        if (b.lapMode) {
-          // [v5.8] 보스 진행 줄: 입구(왼쪽) → ◆ 절반 목표 → 수정(오른쪽). 지금 보스 위치 = 점
-          const p = Math.max(0, Math.min(1, b.f / 24)), kind = D.BOSSES[b.boss].kind;
-          $('lapTrack').style.setProperty('--p', (p * 100).toFixed(1) + '%'); $('lapTrack').classList.toggle('miss', !!b.halfPast);
-          $('bossInfo').textContent = kind !== 'disrupt' ? (b.boss === 'piggy' ? '수정에 닿으면 금화 보너스' : '한 바퀴 안에 잡으면 카드 2장') : b.halfPast ? '수정에 닿으면 수용치 −10' : '◆ 전에 잡으면 카드 등급 UP';
-        } else $('bossInfo').textContent = en ? '광폭화!' : `광폭화까지 ${Math.ceil(D.ECON.enrage - g.bossT)}초`;
-        $('lapTrack').hidden = !b.lapMode;
+        // [v5.9] 보스 진행 줄 · ◆ 절반 표시 삭제(사용자: '중간 지점은 유저가 인지하지 않아도 돼 — 화면 UI가 너무 복잡'). 한 줄 안내만
+        if (b.lapMode) $('bossInfo').textContent = D.BOSSES[b.boss].kind !== 'disrupt' ? (b.boss === 'piggy' ? '수정에 닿으면 금화 보너스' : '한 바퀴 안에 잡으면 카드 2장') : '수정에 닿으면 수용치 −10';
+        else $('bossInfo').textContent = en ? '광폭화!' : `광폭화까지 ${Math.ceil(D.ECON.enrage - g.bossT)}초`;
       }
       // 미션
       const ms = g.mission;
@@ -565,15 +559,40 @@
       </ol><div class="btns"><button class="btn" data-act="back">알겠어요</button></div></div>`);
       m.onclick = e => { if (e.target.closest('[data-act=back]')) { this.sfx().click(); back ? back() : this.close(); } };
     }
-    // [v5.8] 보스전 경고 — 사용자: '보스전 시작 시 워닝 모션. 다른 때와 달리 보스전인 게 바로 느껴져야(화면 워닝 이펙트)'
-    //   빨간 가장자리가 세 번 맥박 + 가운데 줄무늬 띠 'WARNING' · 보스 이름 · 규칙 한 줄이 가로로 밀려 들어왔다 나감(2.2초)
+    // [v5.8] 보스전 경고 → [v5.9] 경고 + 보스 소개(랜다2 영상처럼). 사용자(2026-11-11): '보스 등장 시 어떤 보스인지에 대한 설명도 있어(이것도 추가해줘)'
+    //   0 ~ 1.0초 = 빨간 가장자리 맥박 + 줄무늬 띠 'WARNING'(사이렌) → 1.05초 = 띠 가운데가 보스 얼굴로 뒤집혀 바뀜(울음) · 위에 이름 · 기술 한 줄 · 규칙
+    //   → 2.95초 = 얼굴이 입구의 보스 자리로 날아가 작아짐(예고 → 이동) → 3.3초 끝. 그동안 판은 멈춤(혼자 할 때 · main.js가 introBusy()를 봄)
     bossWarn(e) {
-      const el = $('warnFx'), B = D.BOSSES[e.boss] || {};
-      $('warnName').textContent = '보스전 · ' + e.name;
-      $('warnSub').textContent = B.kind === 'disrupt' ? '한 바퀴 돌아 수정에 닿기 전에 잡아라 — ◆ 절반 전이면 카드 등급 UP' : (B.desc || '');
+      const el = $('warnFx'), B = D.BOSSES[e.boss] || {}, INTRO = 3.3;
+      $('warnName').textContent = e.name;
+      $('warnDesc').textContent = B.desc || '';
+      $('warnSub').textContent = B.kind === 'disrupt' ? '한 바퀴 돌아 수정에 닿으면 몬스터 수용치 −10' : '';
+      $('warnSub').hidden = B.kind !== 'disrupt';
+      const img = $('warnImg'); img.src = 'assets/img/b_' + e.boss + '.png'; img.style.transform = ''; img.style.opacity = '';
       el.hidden = false; el.classList.remove('go'); void el.offsetWidth; el.classList.add('go');
-      clearTimeout(this._warnT); this._warnT = setTimeout(() => { el.hidden = true; el.classList.remove('go'); }, 2300);
-      try { const A = root.SFX; if (A && A.tone) [0, 0.42, 0.84].forEach(d => { A.tone({ f: 660, f2: 440, d: 0.36, v: 0.09, wave: 'square', delay: d }); }); } catch (er) { /* 소리 없음 */ }
+      this._introEnd = performance.now() + INTRO * 1000;
+      clearTimeout(this._warnT); clearTimeout(this._warnT2); clearTimeout(this._warnT3);
+      this._warnT = setTimeout(() => { el.hidden = true; el.classList.remove('go'); }, INTRO * 1000 + 60);
+      // 얼굴 → 입구 보스 자리
+      this._warnT2 = setTimeout(() => this.introFly(), 2950);
+      try {
+        const A = root.SFX;
+        if (A && A.tone) [0, 0.42, 0.84].forEach(d => { A.tone({ f: 660, f2: 440, d: 0.36, v: 0.09, wave: 'square', delay: d }); });
+        this._warnT3 = setTimeout(() => { if (A && A.boss) A.boss(); }, 1050);   // 얼굴이 뒤집혀 나오는 순간 울음
+      } catch (er) { /* 소리 없음 */ }
+    }
+    introBusy() { return !!this._introEnd && performance.now() < this._introEnd; }
+    introFly() {
+      const src = $('warnImg'), world = document.getElementById('world'); if (!world || !src.animate) return null;
+      const wr = world.getBoundingClientRect(), k = wr.width / 720, [ex, ey] = root.GEOM.lanePoint(0, 0), ir = src.getBoundingClientRect();
+      const dx = wr.left + ex * k - (ir.left + ir.width / 2), dy = wr.top + (ey - 40) * k - (ir.top + ir.height / 2);
+      const img = document.createElement('img'); img.className = 'warnFly'; img.src = src.src; img.alt = '';   // 띠 밖 복제본(띠가 접히며 같이 납작해지지 않게)
+      const w = ir.width, h = src.naturalWidth ? w * src.naturalHeight / src.naturalWidth : ir.height;   // 그림 원래 비율(띠의 기울기 · 접힘에 영향받지 않게)
+      Object.assign(img.style, { left: ir.left + 'px', top: (ir.top + ir.height / 2 - h / 2) + 'px', width: w + 'px', height: h + 'px' }); document.body.appendChild(img); src.style.opacity = '0';
+      const an = img.animate([{ transform: 'translate(0,0) scale(1)', opacity: 1 }, { transform: `translate(${dx * 0.5}px,${dy * 0.5 - 40}px) scale(.7)`, opacity: 1, offset: 0.5 }, { transform: `translate(${dx}px,${dy}px) scale(.42)`, opacity: 0 }], { duration: 380, easing: 'cubic-bezier(.5,0,.7,1)', fill: 'forwards' });
+      an.onfinish = an.oncancel = () => img.remove();
+      setTimeout(() => { if (an.playState !== 'paused') img.remove(); }, 700);   // 끝 알림을 못 받는 기기 대비
+      return an;
     }
     // [v5.8] 수정 깨짐 → 조각이 입구에서 위 게이지로 날아가 닿는 순간 수용치 숫자가 바뀜(50 → 40) + 게이지 흔들림 · '−10'
     crystalHit(e) {

@@ -553,9 +553,17 @@
       const dy = m.y - (m.lastY == null ? m.y : m.lastY); if (Math.abs(dy) > 0.05) m.up = dy < 0; m.lastY = m.y;
       const stunned = game.t < m.stunUntil;
       const hopSpd = m.boss ? 5 : m.kind === 'fast' ? 13 : 9;
-      const ph = stunned ? 0 : Math.abs(Math.sin(now * hopSpd + m.ph));
-      const hop = ph * (m.boss ? 4.25 : 6.8) * g, contact = 1 - ph;   // [v5.8] 걷는 통통 모션 −15%(사용자: '아주 살짝 번잡스럽다') — 전 5 · 8 / 0.08
-      const sx = 1 + 0.068 * contact, sy = 1 - 0.068 * contact;
+      let ph = stunned ? 0 : Math.abs(Math.sin(now * hopSpd + m.ph));
+      let hop = ph * (m.boss ? 4.25 : 6.8) * g, contact = 1 - ph;   // [v5.8] 걷는 통통 모션 −15%(사용자: '아주 살짝 번잡스럽다') — 전 5 · 8 / 0.08
+      let sx = 1 + 0.068 * contact, sy = 1 - 0.068 * contact;
+      // [v5.9] 대기 모션: 입구에 앉은 다음 보스(render15 m.seat) · 막 나와 소개를 기다리는 보스 = 숨쉬기 + 4.5초마다 들썩 / 떨어져 착지 / 잡몹 내보낼 때 움찔
+      if (m.seat || (m.boss && game.t - (m.born || 0) < 0.02)) {
+        const a = m.seat ? m.seatT : 9, drop = a < 0.45 ? 1 - Math.pow(a / 0.45, 2) : 0, land = a >= 0.45 && a < 0.75 ? Math.sin((a - 0.45) / 0.3 * Math.PI) : 0;
+        const br = Math.sin(now * 2.2 + m.ph), ib = (now + m.ph) % 4.5, bob = ib < 0.36 ? Math.sin(ib / 0.36 * Math.PI) : 0;
+        const pq = m.pulse != null && m.pulse < 0.34 ? m.pulse / 0.34 : 1, pu = pq < 0.45 ? Math.sin(pq / 0.45 * Math.PI) : pq < 1 ? -0.5 * Math.sin((pq - 0.45) / 0.55 * Math.PI) : 0;   // 움찔(납작) → 튕겨 늘어남
+        ph = drop * 0.9 + bob * 0.3; hop = (drop * 150 + bob * 7) * g;
+        sx = 1 - 0.018 * br + 0.16 * land + 0.12 * pu - 0.05 * bob; sy = 1 + 0.03 * br - 0.18 * land - 0.14 * pu + 0.07 * bob;
+      }
       // 그림자
       c.save(); c.globalAlpha = 0.28 * (1 - ph * 0.4); c.fillStyle = '#1a0e14';
       const sw = (m.boss ? 56 : m.kind === 'giant' ? 46 : 22) * g;
