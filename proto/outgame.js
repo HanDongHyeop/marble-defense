@@ -95,7 +95,7 @@
       if (c) { if (c.state !== 'running') { const p = c.resume(); if (p && p.catch) p.catch(() => {}); } try { const b = c.createBuffer(1, 1, 22050), s = c.createBufferSource(); s.buffer = b; s.connect(c.destination); s.start(0); } catch (e) { /* 무시 */ } }
       this.unlocked = true;
       this.music(true);
-      if (c && !this.loaded) { this.loaded = 1; ['card', 'dice', 'coin', 'build', 'jackpot', 'tierup', 'merge'].forEach(n => fetch(SFXD + n + '.mp3').then(r => r.arrayBuffer()).then(ab => new Promise((ok, no) => c.decodeAudioData(ab, ok, no))).then(b => { this.buf[n] = b; }).catch(() => {})); }
+      if (c && !this.loaded && location.protocol !== 'file:') {   /* [v5.9] 파일 주소는 fetch가 막혀 오류만 남김(로컬 확인용) */ this.loaded = 1; ['card', 'dice', 'coin', 'build', 'jackpot', 'tierup', 'merge'].forEach(n => fetch(SFXD + n + '.mp3').then(r => r.arrayBuffer()).then(ab => new Promise((ok, no) => c.decodeAudioData(ab, ok, no))).then(b => { this.buf[n] = b; }).catch(() => {})); }
     },
     music(gesture) {
       if (!this.unlocked) return;

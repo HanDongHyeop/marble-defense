@@ -75,6 +75,7 @@
       if (!this.ctx) return null;
       const B = this.bufs || (this.bufs = {});
       if (name in B) return B[name];
+      if (location.protocol === 'file:') { B[name] = false; return false; }   // 파일 주소는 fetch가 막힘 → Audio 요소로(로컬 확인용)
       B[name] = null;
       fetch('assets/sfx/' + name + '.mp3').then(r => (r.ok ? r.arrayBuffer() : Promise.reject(r.status)))
         .then(ab => new Promise((res, rej) => { const p = this.ctx.decodeAudioData(ab, res, rej); if (p && p.catch) p.catch(rej); }))
